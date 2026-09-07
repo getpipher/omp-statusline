@@ -2,7 +2,7 @@
 // Theme stub annotates tokens so assertions check BOTH text and color placement.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { zaiLine, prayerLine, infoLine, moneyLine, heat } from "../src/index.ts";
+import { zaiLine, prayerLine, infoLine, moneyLine, heat, paceText } from "../src/index.ts";
 import type { SlTheme } from "../src/index.ts";
 import type { DeenSnapshot } from "../src/deen/source.ts";
 import type { PrayerScheduleEntry } from "../src/deen/time.ts";
@@ -47,25 +47,31 @@ test("prayerLine: adhan-window prayer renders like past (dim ✓)", () => {
   assert.ok(prayerLine(theme, deen(schedule), sep).includes("<dim>Dhuhr 11:51 ✓</>"));
 });
 
-test("zaiLine: heat bands — accent <70, warning ≥70, error ≥90, cap at 100%+", () => {
+test("zaiLine v0.3.0: percents keep heat; paren = pace · reset; lowercase 5hrs label", () => {
   const now = Date.now();
-
-  // nextReset 1h out of a 5h window → 80% elapsed; reset countdown "1h 0m";
-  // v0.2.0: absolute credits ride each window (currentValue/usage), TODAY first.
+  // 5h window, nextReset 1h out → 80% elapsed. Usage 16% vs 80% → pace 5h×(16−80)/100 = 3h 12m under.
   const fiveHour = (percentage: number) => ({ unit: 1, number: 1, usage: 28000, currentValue: 7664, remaining: 20335, percentage, nextResetTime: now + HOUR });
-  const data = (p5: number, p7: number): QuotaResult => ({ tier: "pro", fiveHour: fiveHour(p5), weekly: null, fetchedAt: now });
-  assert.ok(zaiLine(theme, data(16, 0), now, sep).includes("<accent>5HRS 16%/80% 7.7K/28K (1h 0m)</>"));
-  assert.ok(zaiLine(theme, data(76, 0), now, sep).includes("<warning>5HRS 76%/80% 7.7K/28K"));
-  assert.ok(zaiLine(theme, data(93, 0), now, sep).includes("<error>5HRS 93%/80% 7.7K/28K"));
-  assert.ok(zaiLine(theme, data(105, 0), now, sep).includes("<error>5HRS 100%+/80% 7.7K/28K"));
-  // TODAY segment: present with credits, absent on null
-  assert.ok(zaiLine(theme, data(16, 0), now, sep, 11614.3).startsWith(" <dim>󰚯</> <dim>zai</> <dim>TODAY</> <text>11.6K</>"));
-  assert.ok(!zaiLine(theme, data(16, 0), now, sep, null).includes("TODAY"));
+  const data = (p5: number): QuotaResult => ({ tier: "pro", fiveHour: fiveHour(p5), weekly: null, fetchedAt: now });
+  assert.ok(zaiLine(theme, data(16), now, sep).includes("<accent>5hrs 16%/80%"));
+  assert.ok(zaiLine(theme, data(16), now, sep).includes("<dim> (</><success>3h 12m under</><dim> · </><dim>1h 0m</><dim>)</>"));
+  // over pace (usage > elapsed): 85% vs 80% → 5h×5/100 = 15m over, warning token
+  assert.ok(zaiLine(theme, data(85), now, sep).includes("<warning>15m over</>"));
+  assert.ok(zaiLine(theme, data(76), now, sep).includes("<warning>5hrs 76%/80%"));
+  assert.ok(zaiLine(theme, data(93), now, sep).includes("<error>5hrs 93%/80%"));
+  assert.ok(zaiLine(theme, data(105), now, sep).includes("<error>5hrs 100%+/80%"));
   const both: QuotaResult = { tier: "pro", fiveHour: fiveHour(16), weekly: { ...fiveHour(24), nextResetTime: now + 3 * DAY + 18 * HOUR }, fetchedAt: now };
   assert.ok(zaiLine(theme, both, now, sep).includes("</><dim> · </>"));
-  // no windows → dim inert note
   const none: QuotaResult = { tier: "pro", fiveHour: null, weekly: null, fetchedAt: now };
   assert.equal(zaiLine(theme, none, now, sep), "<dim> 󰚯 zai — no quota windows</>");
+});
+
+test("paceText: gap = window × Δ%/100; formats and over/under tokens", () => {
+  const H = 3_600_000;
+  assert.deepEqual(paceText(5 * H, 34, 74), { text: "2h 0m under", token: "success" }); // RECTOR's worked example
+  assert.deepEqual(paceText(5 * H, 85, 60), { text: "1h 15m over", token: "warning" });
+
+  assert.deepEqual(paceText(7 * 86_400_000, 60, 32), { text: "1d 23h over", token: "warning" }); // 7d×28% = 1.96d
+  assert.deepEqual(paceText(5 * H, 50, 50), { text: "0m under", token: "success" }); // dead-even floor
 });
 
 test("heat: band boundaries are >= on both thresholds", () => {
@@ -83,13 +89,16 @@ test("infoLine: clock · hijri · city, all dim", () => {
   );
 });
 
-test("moneyLine: labels dim, values success, two decimals", () => {
-  const line = moneyLine(theme, { repo: 68.358, day: 0, week: 315.266, month: 494.877, sub: 0, entries: 0 }, sep);
+test("moneyLine v0.3.0: every window carries dim token parens; REPO included", () => {
+  const line = moneyLine(
+    theme,
+    { repo: 68.358, day: 0, week: 315.266, month: 494.877, sub: 0, entries: 0, repoTok: 1_334_323_492, dayTok: 812_300, weekTok: 2_668_631_232, monthTok: 5_944_136_904 },
+    sep,
+  );
   assert.equal(
     line,
-    " <dim>󰄬</> <dim>REPO</> <success>$68.36</><dim> · </><dim>DAY</> <success>$0.00</><dim> · </><dim>7DAY</> <success>$315.27</><dim> · </><dim>30DAY</> <success>$494.88</>",
+    " <dim>󰄬</> <dim>REPO</> <success>$68.36</> <dim>(1.3B)</><dim> · </><dim>DAY</> <success>$0.00</> <dim>(812.3K)</><dim> · </><dim>7DAY</> <success>$315.27</> <dim>(2.7B)</><dim> · </><dim>30DAY</> <success>$494.88</> <dim>(5.9B)</>",
   );
 });
-
 const HOUR = 3_600_000;
 const DAY = 86_400_000;
