@@ -17,6 +17,14 @@ import { formatReset } from "./format.ts";
 import { createDeenSource, type DeenSnapshot, type DeenSourceConfig } from "./deen/source.ts";
 import { zaiStatusDetail } from "./adapters/zai.ts";
 import { scanMoney, type MoneySnapshot } from "./money.ts";
+import { fetchTodayCredits, fetchZaiReport } from "./quota/zai-extra.ts";
+// Dashboard-style compact credits: 7664 → "7.7K", 28000 → "28K", 37160 → "37.2K", 140000 → "140K".
+export function compactK(v: number): string {
+  if (v < 1000) return `${Math.round(v)}`;
+  const s = v / 1000 < 100 ? (v / 1000).toFixed(1) : `${Math.round(v / 1000)}`;
+  return `${s.endsWith(".0") ? s.slice(0, -2) : s}K`;
+}
+
 
 // --- omp extension API (structural; no host import needed) -------------------
 export interface SlTheme {
@@ -109,15 +117,20 @@ function usagePercent(w: QuotaLimit): string {
 
 function windowSeg(theme: SlTheme, label: string, lim: QuotaLimit, lengthMs: number, now: number): string {
   const elapsed = `${windowElapsedPercent(lim.nextResetTime, lengthMs, now)}%`;
-  return theme.fg(heat(lim.percentage), `${label} ${usagePercent(lim)}/${elapsed} (${formatReset(lim.nextResetTime, now)})`);
+  const credits = ` ${compactK(lim.currentValue)}/${compactK(lim.usage)}`;
+  return theme.fg(heat(lim.percentage), `${label} ${usagePercent(lim)}/${elapsed}${credits} (${formatReset(lim.nextResetTime, now)})`);
 }
 
 export function wallTime(wallMin: number): string {
   return `${String(Math.floor(wallMin / 60)).padStart(2, "0")}:${String(wallMin % 60).padStart(2, "0")}`;
 }
 
-export function zaiLine(theme: SlTheme, data: QuotaResult, now: number, sep: string): string {
+export function zaiLine(theme: SlTheme, data: QuotaResult, now: number, sep: string, todayCredits: number | null = null): string {
   const segs: string[] = [];
+  // v0.2.0 (dashboard adoption): TODAY plan-credit burn first — the flat-rate-vs-
+  // API-cost benchmark against money-line DAY $; windows gain absolute credits
+  // (currentValue/usage from the quota API, dashboard's "7.33K / 28K" numbers).
+  if (todayCredits !== null) segs.push(`${theme.fg("dim", "TODAY")} ${theme.fg("text", compactK(todayCredits))}`);
   if (data.fiveHour) segs.push(windowSeg(theme, "5HRS", data.fiveHour, FIVE_HOUR_MS, now));
   if (data.weekly) segs.push(windowSeg(theme, "7DAY", data.weekly, WEEK_MS, now));
   if (segs.length === 0) return theme.fg("dim", " 󰚯 zai — no quota windows");
@@ -157,6 +170,7 @@ export default function ompStatusline(pi: SlApi): void {
   const deen = createDeenSource({ cachePath: DEEN_CACHE, config: () => cfg.deen });
   const currentRepo = process.cwd().split("/").filter(Boolean).pop() ?? "unknown";
   let zaiData: QuotaResult | null = null;
+  let todayCredits: number | null = null;
   let money: MoneySnapshot = { repo: 0, day: 0, week: 0, month: 0, sub: 0, entries: 0 };
   let ctx: SlCtx | null = null;
   let started = false;
@@ -175,7 +189,7 @@ export default function ompStatusline(pi: SlApi): void {
     const sep = theme.fg("dim", " · ");
     const s = deen.current();
     const lines: string[] = [];
-    if (zaiData && zaiRelevantNow()) lines.push(zaiLine(theme, zaiData, now, sep));
+    if (zaiData && zaiRelevantNow()) lines.push(zaiLine(theme, zaiData, now, sep, todayCredits));
     if (s) lines.push(prayerLine(theme, s, sep));
     if (s) lines.push(infoLine(theme, s, now, sep));
     lines.push(moneyLine(theme, money, sep));
@@ -218,6 +232,8 @@ export default function ompStatusline(pi: SlApi): void {
       }
       const result = await fetchQuota(key);
       if (result) zaiData = result;
+      const credits = await fetchTodayCredits(key); // dashboard endpoint, same key; fail-soft → null keeps segment off
+      if (credits !== null) todayCredits = credits;
     } catch {
       /* keep last-good; next poll retries */
     }
@@ -265,7 +281,17 @@ export default function ompStatusline(pi: SlApi): void {
       await pollDeen();
       pollMoney();
       const s = deen.current();
-      const zaiPart = zaiData ? zaiStatusDetail(zaiData, Date.now()) : "no data";
+      const key = readZaiKey(cfg.authJsonPath);
+      const report = key ? await fetchZaiReport(key) : null;
+      const zaiPart = zaiData
+        ? [
+          zaiStatusDetail(zaiData, Date.now()),
+          report && report.todayCredits !== null ? `today ${compactK(report.todayCredits)}` : "",
+          report && report.models.length ? `models 7d ${report.models.map((m) => `${m.name} ${compactK(m.credits)}`).join(" · ")}` : "",
+          report && report.streakDays !== null ? `streak ${report.streakDays}d (best ${report.longestStreakDays ?? "?"}d)` : "",
+          report && report.cacheHitRate !== null ? `cache ${Math.round(report.cacheHitRate * 100)}%` : "",
+        ].filter(Boolean).join(" · ")
+        : "no data";
       const deenPart = s ? `${s.city} · ${s.hijri}${s.staleMinutes !== null ? ` · stale ${s.staleMinutes}m` : " · fresh"}` : "no data";
       const moneyPart = `REPO $${money.repo.toFixed(2)} · DAY $${money.day.toFixed(2)} · 7DAY $${money.week.toFixed(2)} · 30DAY $${money.month.toFixed(2)} · sub $${money.sub.toFixed(2)} · ${money.entries} entries`;
       cmdCtx.ui.notify(`zai ${zaiPart} | deen ${deenPart} | money ${moneyPart}`, "info");

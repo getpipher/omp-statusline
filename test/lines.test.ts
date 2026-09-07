@@ -49,14 +49,18 @@ test("prayerLine: adhan-window prayer renders like past (dim ✓)", () => {
 
 test("zaiLine: heat bands — accent <70, warning ≥70, error ≥90, cap at 100%+", () => {
   const now = Date.now();
-  // nextReset 1h out of a 5h window → 80% elapsed; reset countdown "1h 0m"
-  const fiveHour = (percentage: number) => ({ unit: 1, number: 1, usage: 0, currentValue: 0, remaining: 0, percentage, nextResetTime: now + HOUR });
+
+  // nextReset 1h out of a 5h window → 80% elapsed; reset countdown "1h 0m";
+  // v0.2.0: absolute credits ride each window (currentValue/usage), TODAY first.
+  const fiveHour = (percentage: number) => ({ unit: 1, number: 1, usage: 28000, currentValue: 7664, remaining: 20335, percentage, nextResetTime: now + HOUR });
   const data = (p5: number, p7: number): QuotaResult => ({ tier: "pro", fiveHour: fiveHour(p5), weekly: null, fetchedAt: now });
-  assert.ok(zaiLine(theme, data(16, 0), now, sep).includes("<accent>5HRS 16%/80% (1h 0m)</>"));
-  assert.ok(zaiLine(theme, data(76, 0), now, sep).includes("<warning>5HRS 76%/80%"));
-  assert.ok(zaiLine(theme, data(93, 0), now, sep).includes("<error>5HRS 93%/80%"));
-  assert.ok(zaiLine(theme, data(105, 0), now, sep).includes("<error>5HRS 100%+/80%"));
-  // both windows join with the separator
+  assert.ok(zaiLine(theme, data(16, 0), now, sep).includes("<accent>5HRS 16%/80% 7.7K/28K (1h 0m)</>"));
+  assert.ok(zaiLine(theme, data(76, 0), now, sep).includes("<warning>5HRS 76%/80% 7.7K/28K"));
+  assert.ok(zaiLine(theme, data(93, 0), now, sep).includes("<error>5HRS 93%/80% 7.7K/28K"));
+  assert.ok(zaiLine(theme, data(105, 0), now, sep).includes("<error>5HRS 100%+/80% 7.7K/28K"));
+  // TODAY segment: present with credits, absent on null
+  assert.ok(zaiLine(theme, data(16, 0), now, sep, 11614.3).startsWith(" <dim>󰚯</> <dim>zai</> <dim>TODAY</> <text>11.6K</>"));
+  assert.ok(!zaiLine(theme, data(16, 0), now, sep, null).includes("TODAY"));
   const both: QuotaResult = { tier: "pro", fiveHour: fiveHour(16), weekly: { ...fiveHour(24), nextResetTime: now + 3 * DAY + 18 * HOUR }, fetchedAt: now };
   assert.ok(zaiLine(theme, both, now, sep).includes("</><dim> · </>"));
   // no windows → dim inert note
