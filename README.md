@@ -3,7 +3,7 @@
 Four-line statusline widget for [omp](https://github.com/can1357/oh-my-pi) (Oh My Pi) — the omp-native successor to [pi-statusline](https://github.com/getpipher/pi-statusline). Renders below the editor, styled to match omp's native statusline (` · ` separators, nerd glyphs, theme tokens).
 
 ```
- 󰚯 zai 5HRS 16%/25% (3h 43m) · 7DAY 24%/31% (4d 19h)
+ 󰚯 zai TODAY 11.6K · 5HRS 27% 7.7K/28K (2h 1m) · 7DAY 26% 37.5K/140K (4d 18h)
  󰣎 Fajr 04:33 ✓ · Dhuhr 11:51 (3h 36m) · Asr 15:07 · Maghrib 17:52 · Isha 19:01
  󰥔 08:15 · 25 Rabīʿ al-awwal 1448 · Jakarta
  󰄬 REPO $68.36 · DAY $26.50 · 7DAY $315.27 · 30DAY $492.88
@@ -13,7 +13,7 @@ Four-line statusline widget for [omp](https://github.com/can1357/oh-my-pi) (Oh M
 
 | Line | Contents |
 |---|---|
-| **zai** | Coding-plan quota windows — `LABEL usage%/window-elapsed% (reset)`. **Provider-gated**: renders only while the active model's provider is `zai` (or the provider is unreadable); vanishes entirely on other providers. Heat tint: accent < 70%, warning ≥ 70%, error ≥ 90% (raw percentage — over-quota stays error-red, display caps at `100%+`). |
+| **zai** | Coding-plan data — `TODAY` plan-credit burn, then quota windows `LABEL usage%/window-elapsed% current/ceiling (reset)` with absolute credits. **Provider-gated**: renders only while the active model's provider is `zai` (or the provider is unreadable); vanishes entirely on other providers. Heat tint: accent < 70%, warning ≥ 70%, error ≥ 90% (raw percentage — over-quota stays error-red, display caps at `100%+`). |
 | **prayers** | All five prayers with wall times. Past prayers get a dim `✓`; the next prayer is green with a countdown `(3h 36m)` on its segment only. Times from [aladhan](https://aladhan.com) (cached per local day, stale-marker on degradation). |
 | **info** | Local clock · Hijri date · city, all dim. |
 | **money** | API spend: `REPO` (all-time for the current project) · `DAY` (since 00:00 local) · `7DAY`/`30DAY` (rolling windows aligned to the current hour — now Fri 12:00 → from last Fri 12:00). |
@@ -62,7 +62,7 @@ State (deen cache) lives beside the config in `~/.omp/agent/omp-statusline/`.
 
 ## Command
 
-`/sl` — force a zai + deen + money refresh and notify full source state (quota freshness, prayer-city/hijri, spend breakdown incl. subagent share and entry count).
+`/sl` — force a zai + deen + money refresh and notify full source state: quota freshness, today's plan credits, 7-day per-model split, usage streaks, cache-hit rate, prayer-city/hijri, and spend breakdown incl. subagent share and entry count. The z.ai dashboard endpoints (`credit-usage/usage-detail`, `credit-usage/activity`) accept the same API key as the quota API — no browser or cookie session needed.
 
 ## Provenance
 
