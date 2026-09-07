@@ -27,7 +27,7 @@ Render order (top → bottom): **info · prayers · money · zai**.
 
 ## The money line is a ledger, not a tracker
 
-<img src="assets/dataflow.svg" alt="Data-flow diagram: the omp sessions tree on disk feeds the money line; the z.ai quota API (key from the pi auth file, read-only) feeds the provider-gated zai line; the aladhan API, cached per local day, feeds the prayers and info lines." width="832">
+<img src="assets/dataflow.svg" alt="Data-flow diagram: the omp sessions tree on disk feeds the money line; the z.ai quota API (key from omp's credential store, with the pi auth file as fallback) feeds the provider-gated zai line; the aladhan API, cached per local day, feeds the prayers and info lines." width="832">
 
 Costs are disk-scanned from omp's own session tree (`~/.omp/agent/sessions/`), not tracked live:
 
@@ -53,8 +53,7 @@ Or from a checkout: `omp plugin link /path/to/omp-statusline`.
 ```json
 {
   "zai": {
-    "pollIntervalMs": 180000,
-    "authJsonPath": "~/.pi/agent/auth.json"
+    "pollIntervalMs": 180000
   },
   "deen": {
     "city": "Jakarta",
@@ -68,7 +67,7 @@ Or from a checkout: `omp plugin link /path/to/omp-statusline`.
 | Key | Default | Notes |
 |---|---|---|
 | `zai.pollIntervalMs` | `180000` | Poll cycle for quota fetch + money rescan (clamped to ≥ `30000`). |
-| `zai.authJsonPath` | `~/.pi/agent/auth.json` | pi-style auth JSON `{"zai": {"key": "…"}}`, read-only. omp has no auth store of its own, so the pi auth file is read by default. |
+| `zai.authJsonPath` | *unset* | Explicit pi-style auth JSON `{"zai": {"key": "…"}}`, read-only — pins that file as the sole key source. Unset (default): the key resolves from **omp's own credential store** (`omp /login` → `models.yml` → env → auth broker) via the host, falling back to `~/.pi/agent/auth.json` — omp-only setups need no pi files. |
 | `deen.city` / `deen.country` | `Jakarta` / `Indonesia` | aladhan lookup. |
 | `deen.method` | `auto` | Calculation method (`auto` → aladhan default). |
 | `deen.escalateMinutes` | `30` | Minutes-until-next-prayer threshold for the `soon` escalation band. |
@@ -80,7 +79,7 @@ State (deen cache) lives beside the config in `~/.omp/agent/omp-statusline/`.
 Forces a zai + deen + money refresh and notifies full source state: quota freshness, today's plan credits, 7-day per-model split, usage streaks, cache-hit rate, prayer city/hijri, and the spend breakdown including subagent share and entry count:
 
 ```
-zai 5h 16% · weekly 24% · fetched 0m ago · today 7.7K · models 7d glm-5.3 28K · gpt-5.4 9.2K · streak 46d (best 61d) · cache 71% | deen Jakarta · 25 Rabīʿ al-awwal 1448 · fresh | money REPO $68.36 · DAY $26.50 · 7DAY $315.27 · 30DAY $492.88 · sub $11.02 · 1234 entries
+zai key omp credentials · 5h 16% · weekly 24% · fetched 0m ago · today 7.7K · models 7d glm-5.3 28K · gpt-5.4 9.2K · streak 46d (best 61d) · cache 71% | deen Jakarta · 25 Rabīʿ al-awwal 1448 · fresh | money REPO $68.36 · DAY $26.50 · 7DAY $315.27 · 30DAY $492.88 · sub $11.02 · 1234 entries
 ```
 
 The z.ai dashboard endpoints (`credit-usage/usage-detail`, `credit-usage/activity`) accept the same API key as the quota API — no browser or cookie session needed.

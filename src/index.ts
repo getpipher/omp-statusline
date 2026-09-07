@@ -5,8 +5,9 @@
 //   󰄬 REPO $68.36 · DAY $26.50 · 7DAY $315.27 · 30DAY $492.88
 // Data layer vendored from @getpipher/pi-statusline (quota/zai, format, deen, adapters);
 // money comes from the omp sessions disk-scan (money.ts — subagent-inclusive). State
-// lives under ~/.omp/agent/omp-statusline/; the only ~/.pi read is the zai key
-// (configurable authJsonPath — omp has no auth.json of its own).
+// lives under ~/.omp/agent/omp-statusline/. The zai key resolves from omp's own
+// credential store first (ctx.modelRegistry — /login, models.yml, env, broker);
+// the pi-style auth file is only a fallback (authJsonPath pins it explicitly).
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { readFileSync, mkdirSync } from "node:fs";
@@ -47,12 +48,22 @@ interface SlUi {
 interface SlModel {
   provider?: string;
 }
-interface SlCtx {
+export interface SlCtx {
   ui: SlUi;
   // omp-native model facade; absent in contexts that don't expose it → provider reads
   // as undefined and the zai gate falls back to "show" (inert-adapter philosophy:
   // plan data stays visible rather than vanishing when we can't read the provider).
   models?: { current(): SlModel | null };
+  // omp-native credential ladder (models.yml apiKey → OAuth → /login-stored key →
+  // env → auth broker) — the same resolution the host uses for provider "zai".
+  // Absent in contexts that don't expose it → key resolution falls back to file.
+  modelRegistry?: {
+    getApiKeyForProvider(
+      provider: string,
+      sessionId?: unknown,
+      opts?: { forceRefresh?: boolean },
+    ): Promise<string | null | undefined>;
+  };
 }
 interface SlApi {
   on(event: "session_start" | "model_select", handler: (event: unknown, ctx: SlCtx) => void): void;
@@ -66,10 +77,16 @@ interface SlApi {
 const STATE_DIR = join(homedir(), ".omp", "agent", "omp-statusline");
 const CONFIG_PATH = join(STATE_DIR, "config.json");
 const DEEN_CACHE = join(STATE_DIR, "deen-cache.json");
+// Fallback file only — omp keeps its own credentials in ~/.omp/agent/agent.db
+// (auth_credentials), so omp-only setups never need this pi-era path.
+const PI_AUTH_JSON = join(homedir(), ".pi", "agent", "auth.json");
 
 export interface LiveConfig {
   zaiPollMs: number;
-  authJsonPath: string;
+  // null = not configured → key resolves via ctx.modelRegistry first, then the
+  // pi-style auth file (PI_AUTH_JSON). A configured path pins the file as the
+  // sole source (explicit intent beats the credential store).
+  authJsonPath: string | null;
   deen: DeenSourceConfig;
 }
 
@@ -78,7 +95,7 @@ export interface LiveConfig {
 export function loadLiveConfig(configPath = CONFIG_PATH): LiveConfig {
   const defaults: LiveConfig = {
     zaiPollMs: 180_000,
-    authJsonPath: join(homedir(), ".pi", "agent", "auth.json"),
+    authJsonPath: null,
     deen: { city: "Jakarta", country: "Indonesia", method: "auto", escalateMinutes: 30 },
   };
   let parsed: { zai?: { pollIntervalMs?: unknown; authJsonPath?: unknown }; deen?: Record<string, unknown> };
@@ -92,7 +109,7 @@ export function loadLiveConfig(configPath = CONFIG_PATH): LiveConfig {
   const esc = parsed.deen?.escalateMinutes;
   return {
     zaiPollMs: typeof pollMs === "number" && Number.isFinite(pollMs) && pollMs >= 30_000 ? pollMs : defaults.zaiPollMs,
-    authJsonPath: typeof authPath === "string" && authPath !== "" ? authPath : defaults.authJsonPath,
+    authJsonPath: typeof authPath === "string" && authPath !== "" ? authPath : null,
     deen: {
       city: typeof parsed.deen?.city === "string" ? parsed.deen.city : defaults.deen.city,
       country: typeof parsed.deen?.country === "string" ? parsed.deen.country : defaults.deen.country,
@@ -100,6 +117,30 @@ export function loadLiveConfig(configPath = CONFIG_PATH): LiveConfig {
       escalateMinutes: typeof esc === "number" && Number.isFinite(esc) ? esc : defaults.deen.escalateMinutes,
     },
   };
+}
+
+// Resolved key + its origin (diagnostics: an omp /login key and a pi auth.json key
+// can be different z.ai accounts — /sl reports which one fed the quota).
+export interface ZaiKey {
+  key: string;
+  source: string;
+}
+export async function resolveZaiKey(
+  ctx: SlCtx | null,
+  cfg: LiveConfig,
+  defaultFile: string = PI_AUTH_JSON,
+): Promise<ZaiKey | null> {
+  if (cfg.authJsonPath === null && ctx?.modelRegistry) {
+    try {
+      const key = await ctx.modelRegistry.getApiKeyForProvider("zai");
+      if (typeof key === "string" && key !== "") return { key, source: "omp credentials" };
+    } catch {
+      /* registry unavailable → file fallback */
+    }
+  }
+  const file = cfg.authJsonPath ?? defaultFile;
+  const fileKey = readZaiKey(file);
+  return fileKey ? { key: fileKey, source: file } : null;
 }
 
 // --- line renderers (approved mockup, tmux window slmock, 2026-09-07) ---------
@@ -251,15 +292,18 @@ export default function ompStatusline(pi: SlApi): void {
 
   async function pollZai(): Promise<void> {
     try {
-      const key = readZaiKey(cfg.authJsonPath);
-      if (!key) {
+      const resolved = await resolveZaiKey(ctx, cfg);
+      if (!resolved) {
         if (!warnedNoKey) {
           warnedNoKey = true;
-          ctx?.ui.notify(`omp-statusline: no zai key at ${cfg.authJsonPath} — quota line inert`, "warning");
+          ctx?.ui.notify(
+            `omp-statusline: no zai key (omp credential store / ${cfg.authJsonPath ?? PI_AUTH_JSON}) — quota line inert`,
+            "warning",
+          );
         }
         return;
       }
-      const result = await fetchQuota(key);
+      const result = await fetchQuota(resolved.key);
       if (result) zaiData = result;
     } catch {
       /* keep last-good; next poll retries */
@@ -308,17 +352,18 @@ export default function ompStatusline(pi: SlApi): void {
       await pollDeen();
       pollMoney();
       const s = deen.current();
-      const key = readZaiKey(cfg.authJsonPath);
-      const report = key ? await fetchZaiReport(key) : null;
+      const resolved = await resolveZaiKey(cmdCtx, cfg);
+      const report = resolved ? await fetchZaiReport(resolved.key) : null;
       const zaiPart = zaiData
         ? [
+          `key ${resolved?.source ?? "?"}`,
           zaiStatusDetail(zaiData, Date.now()),
           report && report.todayCredits !== null ? `today ${compactK(report.todayCredits)}` : "",
           report && report.models.length ? `models 7d ${report.models.map((m) => `${m.name} ${compactK(m.credits)}`).join(" · ")}` : "",
           report && report.streakDays !== null ? `streak ${report.streakDays}d (best ${report.longestStreakDays ?? "?"}d)` : "",
           report && report.cacheHitRate !== null ? `cache ${Math.round(report.cacheHitRate * 100)}%` : "",
         ].filter(Boolean).join(" · ")
-        : "no data";
+        : resolved ? "no quota data" : "no key";
       const deenPart = s ? `${s.city} · ${s.hijri}${s.staleMinutes !== null ? ` · stale ${s.staleMinutes}m` : " · fresh"}` : "no data";
       const moneyPart = `REPO $${money.repo.toFixed(2)} · DAY $${money.day.toFixed(2)} · 7DAY $${money.week.toFixed(2)} · 30DAY $${money.month.toFixed(2)} · sub $${money.sub.toFixed(2)} · ${money.entries} entries`;
       cmdCtx.ui.notify(`zai ${zaiPart} | deen ${deenPart} | money ${moneyPart}`, "info");
