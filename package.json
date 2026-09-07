@@ -1,0 +1,39 @@
+{
+  "name": "@getpipher/omp-statusline",
+  "version": "0.1.0",
+  "description": "Four-line omp statusline widget: zai coding-plan quota (provider-gated), prayer times, hijri clock, and API-spend ledger (REPO/DAY/7DAY/30DAY, subagent-inclusive).",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "omp",
+    "statusline"
+  ],
+  "license": "MIT",
+  "author": "RECTOR <rector@rectorspace.com>",
+  "homepage": "https://github.com/getpipher/omp-statusline",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "files": [
+    "src",
+    "NOTICE",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.ts",
+    "test:run": "node --test --test-reporter=spec test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "typescript": "^5.9.3"
+  },
+  "packageManager": "pnpm@10.33.2"
+}

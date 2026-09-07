@@ -1,0 +1,6 @@
+@getpipher/omp-statusline
+
+Data layer (src/quota/, src/deen/, src/adapters/, src/format.ts, src/types.ts)
+vendored verbatim from @getpipher/pi-statusline (same author/org, MIT) so the
+omp package carries zero relative imports outside its tree. Upstream fixes to
+those modules should flow back into pi-statusline first, then be re-vendored.
