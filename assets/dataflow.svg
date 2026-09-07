@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="832" height="332" viewBox="0 0 832 332" role="img">
+  <title>Data sources feeding the omp-statusline widget</title>
+  <defs>
+    <symbol id="clock" viewBox="0 0 100 100">
+      <path d="M300 660Q240 660 185.0 638.0Q130 616 87.0 573.5Q44 531 22.0 475.5Q0 420 0.0 360.5Q0 301 22.0 245.5Q44 190 87.0 147.5Q130 105 185.0 82.5Q240 60 299.0 60.0Q358 60 414.0 82.5Q470 105 512.0 147.5Q554 190 577.0 245.5Q600 301 600.0 360.5Q600 420 577.0 475.5Q554 531 512.0 573.5Q470 616 414.0 638.0Q358 660 300 660ZM426 234 270 331V511H314V355L450 273Z" transform="translate(-0.0 110.0) scale(0.1667 -0.1667)"/>
+    </symbol>
+    <symbol id="mosque" viewBox="0 0 100 100">
+      <path d="M300 693Q338 693 371.0 673.5Q404 654 424.0 622.0Q444 590 444 554Q442 500 408 460Q390 440 368 427Q388 437 422 442L450 443Q512 443 556.0 402.5Q600 362 600.0 300.0Q600 238 557.0 199.0Q514 160 450 160L434 162Q414 164 394 170Q362 180 332 193V182Q332 166 338 147Q344 122 358 94Q374 61 400 27H200Q250 89 262 147Q268 177 268 193Q238 179 206 170Q186 164 166 162L150 160Q86 160 43.0 199.0Q0 238 0.0 300.0Q0 362 44.0 402.5Q88 443 150 443L178 442Q212 437 232 427Q210 440 192 460Q158 499 156 554Q156 590 177.0 622.0Q198 654 230.0 673.5Q262 693 300 693Z" transform="translate(-0.0 104.1) scale(0.1502 -0.1502)"/>
+    </symbol>
+    <symbol id="coins" viewBox="0 0 100 100">
+      <path d="M600 542 188 130 0 318 50 366 188 226 552 590Z" transform="translate(0.0 98.3) scale(0.1667 -0.1667)"/>
+    </symbol>
+    <symbol id="bolt" viewBox="0 0 100 100">
+      <path d="M261 188H171L2 360Q1 360 171 532H261L306 610L537 668L601 438L556 360L601 282L537 52L306 110ZM266 198 441 150 340 326H137ZM500 184 548 360 500 536 399 360ZM266 522 137 394H340L441 570Z" transform="translate(-0.3 108.4) scale(0.1623 -0.1623)"/>
+    </symbol>
+  </defs>
+  <defs><marker id="arr-money" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#3fb950"/></marker><marker id="arr-zai" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#58a6ff"/></marker><marker id="arr-deen" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#39c5cf"/></marker></defs>
+  <rect x="24" y="36" width="320" height="88" rx="10" fill="#161b22" stroke="#30363d"/>
+  <circle cx="46" cy="64" r="5" fill="#3fb950"/>
+  <text x="62" y="68" font-size="14" font-weight="600" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" fill="#e6edf3">omp sessions tree</text>
+  <rect x="279" y="53" width="51" height="16" rx="8" fill="#3fb950" opacity="0.14"/>
+  <text x="304" y="65" text-anchor="middle" font-size="10.5" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" fill="#3fb950">money</text>
+  <text x="40" y="91" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#8b949e">~/.omp/agent/sessions/</text>
+  <text x="40" y="108" font-size="11" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" fill="#8b949e">disk scan · ~0.9 s · off render path</text>
+  <rect x="24" y="134" width="320" height="88" rx="10" fill="#161b22" stroke="#30363d"/>
+  <circle cx="46" cy="162" r="5" fill="#58a6ff"/>
+  <text x="62" y="166" font-size="14" font-weight="600" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" fill="#e6edf3">z.ai quota API</text>
+  <rect x="180" y="151" width="150" height="16" rx="8" fill="#58a6ff" opacity="0.14"/>
+  <text x="255" y="163" text-anchor="middle" font-size="10.5" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" fill="#58a6ff">zai · provider-gated</text>
+  <text x="40" y="189" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#8b949e">key from ~/.pi/agent/auth.json</text>
+  <text x="40" y="206" font-size="11" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" fill="#8b949e">read-only — omp has no auth store of its own</text>
+  <rect x="24" y="232" width="320" height="88" rx="10" fill="#161b22" stroke="#30363d"/>
+  <circle cx="46" cy="260" r="5" fill="#39c5cf"/>
+  <text x="62" y="264" font-size="14" font-weight="600" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" fill="#e6edf3">aladhan API</text>
+  <rect x="220" y="249" width="110" height="16" rx="8" fill="#39c5cf" opacity="0.14"/>
+  <text x="275" y="261" text-anchor="middle" font-size="10.5" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" fill="#39c5cf">prayers · info</text>
+  <text x="40" y="287" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#8b949e">cached per local day</text>
+  <text x="40" y="304" font-size="11" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" fill="#8b949e">stale-marker on degradation</text>
+  <rect x="520" y="63" width="288" height="206" rx="10" fill="#0d1117" stroke="#30363d"/>
+  <text x="538" y="90" font-size="12" font-weight="600" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" fill="#8b949e">widget · below the editor</text>
+  <use href="#clock" x="545.4" y="106.4" width="9.2" height="9.2" fill="#8b949e"/>
+  <text x="568" y="115" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#e6edf3">info</text>
+  <circle cx="788" cy="110" r="4.5" fill="#39c5cf"/>
+  <use href="#mosque" x="544.9" y="145.9" width="10.2" height="10.2" fill="#8b949e"/>
+  <text x="568" y="155" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#e6edf3">prayers</text>
+  <circle cx="788" cy="150" r="4.5" fill="#39c5cf"/>
+  <use href="#coins" x="545.4" y="186.4" width="9.2" height="9.2" fill="#8b949e"/>
+  <text x="568" y="195" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#e6edf3">money</text>
+  <circle cx="788" cy="190" r="4.5" fill="#3fb950"/>
+  <use href="#bolt" x="545.3" y="226.3" width="9.4" height="9.4" fill="#8b949e"/>
+  <text x="568" y="235" font-size="14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#e6edf3">zai</text>
+  <circle cx="788" cy="230" r="4.5" fill="#58a6ff"/>
+  <path d="M344 80 C 429.0 80, 429.0 185, 514 190" fill="none" stroke="#3fb950" stroke-width="1.6" opacity="0.7" marker-end="url(#arr-money)"/>
+  <path d="M344 178 C 429.0 178, 429.0 225, 514 230" fill="none" stroke="#58a6ff" stroke-width="1.6" opacity="0.7" marker-end="url(#arr-zai)"/>
+  <path d="M344 276 C 429.0 276, 429.0 105, 514 110" fill="none" stroke="#39c5cf" stroke-width="1.6" opacity="0.7" marker-end="url(#arr-deen)"/>
+  <path d="M344 276 C 429.0 276, 429.0 145, 514 150" fill="none" stroke="#39c5cf" stroke-width="1.6" opacity="0.7" marker-end="url(#arr-deen)"/>
+</svg>
