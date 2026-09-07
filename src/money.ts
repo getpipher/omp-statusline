@@ -18,9 +18,15 @@ export interface MoneySnapshot {
   month: number; // hourFloor(now) − 30×24h
   sub: number; // subagent-artifact share of those windows' union (reporting only)
   entries: number;
+  // v0.3.0: token volumes per window (RECTOR) — totalTokens from the same scan;
+  // falls back to the token-component sum on legacy entries lacking the field.
+  repoTok: number;
+  dayTok: number;
+  weekTok: number;
+  monthTok: number;
 }
 
-interface CostEntry { ts: number; cost: number; repo: string; sub: boolean }
+interface CostEntry { ts: number; cost: number; repo: string; sub: boolean; tok: number }
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 86_400_000;
@@ -54,14 +60,20 @@ function parseSessionFile(path: string, sub: boolean, out: CostEntry[], seen: Se
     if (msg.role !== "assistant") continue;
     const usage = msg.usage;
     if (typeof usage !== "object" || usage === null) continue;
-    const cost = (usage as Record<string, unknown>).cost;
+    const u = usage as Record<string, unknown>;
+    const cost = u.cost;
     if (typeof cost !== "object" || cost === null) continue;
     const total = (cost as Record<string, unknown>).total;
     if (typeof total !== "number" || !Number.isFinite(total)) continue;
     if (seen.has(e.id)) continue;
     seen.add(e.id);
+    const tokRaw = u.totalTokens;
+    const parts = [u.input, u.output, u.cacheRead, u.cacheWrite];
+    const tok = typeof tokRaw === "number" && Number.isFinite(tokRaw) && tokRaw > 0
+      ? tokRaw
+      : parts.reduce((s: number, v) => (typeof v === "number" && Number.isFinite(v) ? s + v : s), 0);
     const ts = typeof e.timestamp === "string" && Number.isFinite(Date.parse(e.timestamp)) ? Date.parse(e.timestamp) : 0;
-    out.push({ ts, cost: total, repo, sub });
+    out.push({ ts, cost: total, repo, sub, tok });
   }
 }
 
@@ -76,7 +88,7 @@ export function scanMoney(
   try {
     repoDirs = readdirSync(root);
   } catch {
-    return { repo: 0, day: 0, week: 0, month: 0, sub: 0, entries: 0 };
+    return { repo: 0, day: 0, week: 0, month: 0, sub: 0, entries: 0, repoTok: 0, dayTok: 0, weekTok: 0, monthTok: 0 };
   }
   for (const slug of repoDirs) {
     const repoDir = join(root, slug);
@@ -108,15 +120,27 @@ export function scanMoney(
   midnight.setHours(0, 0, 0, 0);
   const hourFloor = now - (now % HOUR_MS);
   let repo = 0, day = 0, week = 0, month = 0, sub = 0;
+  let repoTok = 0, dayTok = 0, weekTok = 0, monthTok = 0;
   const windowStart = hourFloor - 30 * DAY_MS; // widest window — sub share reported over it
   for (const e of entries) {
-    if (currentRepo !== "unknown" && e.repo === currentRepo) repo += e.cost;
-    if (e.ts >= midnight.getTime()) day += e.cost;
-    if (e.ts >= hourFloor - 7 * DAY_MS) week += e.cost;
+    if (currentRepo !== "unknown" && e.repo === currentRepo) {
+      repo += e.cost;
+      repoTok += e.tok;
+    }
+    if (e.ts >= midnight.getTime()) {
+      day += e.cost;
+      dayTok += e.tok;
+    }
+    if (e.ts >= hourFloor - 7 * DAY_MS) {
+      week += e.cost;
+      weekTok += e.tok;
+    }
     if (e.ts >= windowStart) {
       month += e.cost;
+      monthTok += e.tok;
       if (e.sub) sub += e.cost;
     }
+
   }
-  return { repo, day, week, month, sub, entries: entries.length };
+  return { repo, day, week, month, sub, entries: entries.length, repoTok, dayTok, weekTok, monthTok };
 }

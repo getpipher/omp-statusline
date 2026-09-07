@@ -81,7 +81,7 @@ test("scanMoney: windows, dedupe, repo attribution, subagent share", () => {
 
 test("scanMoney: missing sessions root → zero snapshot, no throw", () => {
   const snap = scanMoney("repoA", Date.now(), join(tmpdir(), "osl-does-not-exist"));
-  assert.deepEqual(snap, { repo: 0, day: 0, week: 0, month: 0, sub: 0, entries: 0 });
+  assert.deepEqual(snap, { repo: 0, day: 0, week: 0, month: 0, sub: 0, entries: 0, repoTok: 0, dayTok: 0, weekTok: 0, monthTok: 0 });
 });
 
 test("scanMoney: unknown current repo never aggregates others", () => {

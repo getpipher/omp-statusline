@@ -17,7 +17,7 @@ import { formatReset } from "./format.ts";
 import { createDeenSource, type DeenSnapshot, type DeenSourceConfig } from "./deen/source.ts";
 import { zaiStatusDetail } from "./adapters/zai.ts";
 import { scanMoney, type MoneySnapshot } from "./money.ts";
-import { fetchTodayCredits, fetchZaiReport } from "./quota/zai-extra.ts";
+import { fetchZaiReport } from "./quota/zai-extra.ts";
 // Dashboard-style compact credits: 7664 → "7.7K", 28000 → "28K", 37160 → "37.2K", 140000 → "140K".
 export function compactK(v: number): string {
   if (v < 1000) return `${Math.round(v)}`;
@@ -115,23 +115,42 @@ function usagePercent(w: QuotaLimit): string {
   return w.percentage > 100 ? "100%+" : `${w.percentage}%`;
 }
 
+// v0.3.0 pace gap: window × (usage% − elapsed%)/100 — linear, division-free, stable
+// at window start. over = burning faster than the clock (quota exhausts early by
+// that much) → warning; under = behind the clock → success.
+export function paceText(lengthMs: number, usagePct: number, elapsedPct: number): { text: string; token: string } {
+  const gapMs = lengthMs * (usagePct - elapsedPct) / 100;
+  const m = Math.round(Math.abs(gapMs) / 60_000);
+  const d = Math.floor(m / 1440);
+  const h = Math.floor((m % 1440) / 60);
+  const mm = m % 60;
+  const t = d > 0 ? `${d}d ${h}h` : h > 0 ? `${h}h ${mm}m` : `${mm}m`;
+  return gapMs > 0 ? { text: `${t} over`, token: "warning" } : { text: `${t} under`, token: "success" };
+}
+
 function windowSeg(theme: SlTheme, label: string, lim: QuotaLimit, lengthMs: number, now: number): string {
-  const elapsed = `${windowElapsedPercent(lim.nextResetTime, lengthMs, now)}%`;
-  const credits = ` ${compactK(lim.currentValue)}/${compactK(lim.usage)}`;
-  return theme.fg(heat(lim.percentage), `${label} ${usagePercent(lim)}/${elapsed}${credits} (${formatReset(lim.nextResetTime, now)})`);
+  const elapsedPct = windowElapsedPercent(lim.nextResetTime, lengthMs, now);
+  const pace = paceText(lengthMs, lim.percentage, elapsedPct);
+  return [
+    theme.fg(heat(lim.percentage), `${label} ${usagePercent(lim)}/${elapsedPct}%`),
+    theme.fg("dim", " ("),
+    theme.fg(pace.token, pace.text),
+    theme.fg("dim", " · "),
+    theme.fg("dim", formatReset(lim.nextResetTime, now)),
+    theme.fg("dim", ")"),
+  ].join("");
 }
 
 export function wallTime(wallMin: number): string {
   return `${String(Math.floor(wallMin / 60)).padStart(2, "0")}:${String(wallMin % 60).padStart(2, "0")}`;
 }
 
-export function zaiLine(theme: SlTheme, data: QuotaResult, now: number, sep: string, todayCredits: number | null = null): string {
+export function zaiLine(theme: SlTheme, data: QuotaResult, now: number, sep: string): string {
   const segs: string[] = [];
-  // v0.2.0 (dashboard adoption): TODAY plan-credit burn first — the flat-rate-vs-
-  // API-cost benchmark against money-line DAY $; windows gain absolute credits
-  // (currentValue/usage from the quota API, dashboard's "7.33K / 28K" numbers).
-  if (todayCredits !== null) segs.push(`${theme.fg("dim", "TODAY")} ${theme.fg("text", compactK(todayCredits))}`);
-  if (data.fiveHour) segs.push(windowSeg(theme, "5HRS", data.fiveHour, FIVE_HOUR_MS, now));
+  // v0.3.0 (RECTOR): absolute credits + TODAY dropped from the line (TODAY plan
+  // credits stay in /sl via fetchZaiReport); windows read percents + pace + reset.
+  // Labels as approved in mock: lowercase "5hrs", uppercase "7DAY".
+  if (data.fiveHour) segs.push(windowSeg(theme, "5hrs", data.fiveHour, FIVE_HOUR_MS, now));
   if (data.weekly) segs.push(windowSeg(theme, "7DAY", data.weekly, WEEK_MS, now));
   if (segs.length === 0) return theme.fg("dim", " 󰚯 zai — no quota windows");
   return ` ${theme.fg("dim", "󰚯")} ${theme.fg("dim", "zai")} ${segs.join(sep)}`;
@@ -157,12 +176,21 @@ export function infoLine(theme: SlTheme, s: DeenSnapshot, now: number, sep: stri
   return ` ${theme.fg("dim", "󰥔")} ${[clock, s.hijri, s.city].map((part) => theme.fg("dim", part)).join(sep)}`;
 }
 
-export function moneyLine(theme: SlTheme, m: MoneySnapshot, sep: string): string {
-  const f = (n: number) => `$${n.toFixed(2)}`;
-  const seg = (label: string, value: number) => `${theme.fg("dim", label)} ${theme.fg("success", f(value))}`;
-  return ` ${theme.fg("dim", "󰄬")} ${[seg("REPO", m.repo), seg("DAY", m.day), seg("7DAY", m.week), seg("30DAY", m.month)].join(sep)}`;
+
+// v0.3.0: token volumes per window — RECTOR's `(138.2M)` dim parens after each $.
+export function fmtTokens(t: number): string {
+  if (t >= 1e9) return `${(t / 1e9).toFixed(1)}B`;
+  if (t >= 1e6) return `${(t / 1e6).toFixed(1)}M`;
+  if (t >= 1e3) return `${(t / 1e3).toFixed(1)}K`;
+  return `${Math.round(t)}`;
 }
 
+export function moneyLine(theme: SlTheme, m: MoneySnapshot, sep: string): string {
+  const f = (n: number) => `$${n.toFixed(2)}`;
+  const seg = (label: string, value: number, tok: number) =>
+    `${theme.fg("dim", label)} ${theme.fg("success", f(value))} ${theme.fg("dim", `(${fmtTokens(tok)})`)}`;
+  return ` ${theme.fg("dim", "󰄬")} ${[seg("REPO", m.repo, m.repoTok), seg("DAY", m.day, m.dayTok), seg("7DAY", m.week, m.weekTok), seg("30DAY", m.month, m.monthTok)].join(sep)}`;
+}
 // --- extension ---------------------------------------------------------------
 export default function ompStatusline(pi: SlApi): void {
   const cfg = loadLiveConfig();
@@ -170,8 +198,7 @@ export default function ompStatusline(pi: SlApi): void {
   const deen = createDeenSource({ cachePath: DEEN_CACHE, config: () => cfg.deen });
   const currentRepo = process.cwd().split("/").filter(Boolean).pop() ?? "unknown";
   let zaiData: QuotaResult | null = null;
-  let todayCredits: number | null = null;
-  let money: MoneySnapshot = { repo: 0, day: 0, week: 0, month: 0, sub: 0, entries: 0 };
+  let money: MoneySnapshot = { repo: 0, day: 0, week: 0, month: 0, sub: 0, entries: 0, repoTok: 0, dayTok: 0, weekTok: 0, monthTok: 0 };
   let ctx: SlCtx | null = null;
   let started = false;
   let warnedNoKey = false;
@@ -189,12 +216,12 @@ export default function ompStatusline(pi: SlApi): void {
     const sep = theme.fg("dim", " · ");
     const s = deen.current();
     const lines: string[] = [];
-    // v0.2.1 (RECTOR order): money first, prayers/info, zai last — the native
-    // statusline (omp chrome, immovable bottom line) closes the block.
-    lines.push(moneyLine(theme, money, sep));
-    if (s) lines.push(prayerLine(theme, s, sep));
+    // v0.3.0 (RECTOR order): info first, prayers, money (with token volumes),
+    // zai last — the native statusline (omp chrome, immovable bottom) closes it.
     if (s) lines.push(infoLine(theme, s, now, sep));
-    if (zaiData && zaiRelevantNow()) lines.push(zaiLine(theme, zaiData, now, sep, todayCredits));
+    if (s) lines.push(prayerLine(theme, s, sep));
+    lines.push(moneyLine(theme, money, sep));
+    if (zaiData && zaiRelevantNow()) lines.push(zaiLine(theme, zaiData, now, sep));
     return lines;
   }
 
@@ -234,8 +261,6 @@ export default function ompStatusline(pi: SlApi): void {
       }
       const result = await fetchQuota(key);
       if (result) zaiData = result;
-      const credits = await fetchTodayCredits(key); // dashboard endpoint, same key; fail-soft → null keeps segment off
-      if (credits !== null) todayCredits = credits;
     } catch {
       /* keep last-good; next poll retries */
     }
