@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="866" height="329" viewBox="0 0 866 329" role="img">
+  <title>omp-statusline widget rendering below the editor</title>
+  <defs>
+    <symbol id="clock" viewBox="0 0 100 100">
+      <path d="M300 660Q240 660 185.0 638.0Q130 616 87.0 573.5Q44 531 22.0 475.5Q0 420 0.0 360.5Q0 301 22.0 245.5Q44 190 87.0 147.5Q130 105 185.0 82.5Q240 60 299.0 60.0Q358 60 414.0 82.5Q470 105 512.0 147.5Q554 190 577.0 245.5Q600 301 600.0 360.5Q600 420 577.0 475.5Q554 531 512.0 573.5Q470 616 414.0 638.0Q358 660 300 660ZM426 234 270 331V511H314V355L450 273Z" transform="translate(-0.0 110.0) scale(0.1667 -0.1667)"/>
+    </symbol>
+    <symbol id="mosque" viewBox="0 0 100 100">
+      <path d="M300 693Q338 693 371.0 673.5Q404 654 424.0 622.0Q444 590 444 554Q442 500 408 460Q390 440 368 427Q388 437 422 442L450 443Q512 443 556.0 402.5Q600 362 600.0 300.0Q600 238 557.0 199.0Q514 160 450 160L434 162Q414 164 394 170Q362 180 332 193V182Q332 166 338 147Q344 122 358 94Q374 61 400 27H200Q250 89 262 147Q268 177 268 193Q238 179 206 170Q186 164 166 162L150 160Q86 160 43.0 199.0Q0 238 0.0 300.0Q0 362 44.0 402.5Q88 443 150 443L178 442Q212 437 232 427Q210 440 192 460Q158 499 156 554Q156 590 177.0 622.0Q198 654 230.0 673.5Q262 693 300 693Z" transform="translate(-0.0 104.1) scale(0.1502 -0.1502)"/>
+    </symbol>
+    <symbol id="coins" viewBox="0 0 100 100">
+      <path d="M600 542 188 130 0 318 50 366 188 226 552 590Z" transform="translate(0.0 98.3) scale(0.1667 -0.1667)"/>
+    </symbol>
+    <symbol id="bolt" viewBox="0 0 100 100">
+      <path d="M261 188H171L2 360Q1 360 171 532H261L306 610L537 668L601 438L556 360L601 282L537 52L306 110ZM266 198 441 150 340 326H137ZM500 184 548 360 500 536 399 360ZM266 522 137 394H340L441 570Z" transform="translate(-0.3 108.4) scale(0.1623 -0.1623)"/>
+    </symbol>
+  </defs>
+  <rect x="0.5" y="0.5" width="865" height="328" rx="10" fill="#0d1117" stroke="#30363d"/>
+  <path d="M0.5 33.5 V10 A9.5 9.5 0 0 1 10 0.5 H856 A9.5 9.5 0 0 1 865.5 10 V33.5 Z" fill="#161b22" stroke="#30363d"/>
+  <circle cx="18" cy="17.0" r="4.5" fill="#ff5f57" opacity="0.9"/>
+  <circle cx="35" cy="17.0" r="4.5" fill="#febc2e" opacity="0.9"/>
+  <circle cx="52" cy="17.0" r="4.5" fill="#28c840" opacity="0.9"/>
+  <text x="433.0" y="21.0" text-anchor="middle" font-size="11.5" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" fill="#6e7681">omp — ~/local-dev/getpipher/omp-statusline</text>
+  <text x="26.0" y="58.0" font-size="12.5" xml:space="preserve" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#3d444d">export default function ompStatusline(pi: SlApi): void {</text>
+  <text x="26.0" y="79.0" font-size="12.5" xml:space="preserve" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#3d444d">  const cfg = loadLiveConfig();</text>
+  <text x="26.0" y="100.0" font-size="12.5" xml:space="preserve" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#3d444d">  const deen = createDeenSource({ cachePath: DEEN_CACHE, config: () =&gt; cfg.deen });</text>
+  <text x="26.0" y="121.0" font-size="12.5" xml:space="preserve" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#3d444d">  let zaiData: QuotaResult | null = null;</text>
+  <text x="26.0" y="142.0" font-size="12.5" xml:space="preserve" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#3d444d">  // v0.3.0 (RECTOR order): info first, prayers, money, zai</text>
+  <rect x="476.0" y="132.5" width="6.5" height="12.5" fill="#58a6ff" opacity="0.55"/>
+  <use href="#clock" x="28.9" y="169.2" width="9.2" height="9.2" fill="#8b949e"/>
+  <text x="50.0" y="179.0" font-size="15.0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"><tspan fill="#8b949e">08:15</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#8b949e">25 Rabīʿ al-awwal 1448</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#8b949e">Jakarta</tspan></text>
+  <use href="#mosque" x="28.4" y="194.7" width="10.2" height="10.2" fill="#8b949e"/>
+  <text x="50.0" y="205.0" font-size="15.0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"><tspan fill="#8b949e">Fajr 04:33 ✓</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#3fb950">Dhuhr 11:51 (3h 36m)</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#e6edf3">Asr 15:07</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#e6edf3">Maghrib 17:52</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#e6edf3">Isha 19:01</tspan></text>
+  <use href="#coins" x="28.9" y="221.2" width="9.2" height="9.2" fill="#8b949e"/>
+  <text x="50.0" y="231.0" font-size="15.0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"><tspan fill="#8b949e">REPO</tspan><tspan fill="#8b949e"> </tspan><tspan fill="#3fb950">$68.36</tspan><tspan fill="#8b949e"> </tspan><tspan fill="#8b949e">(1.3B)</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#8b949e">DAY</tspan><tspan fill="#8b949e"> </tspan><tspan fill="#3fb950">$26.50</tspan><tspan fill="#8b949e"> </tspan><tspan fill="#8b949e">(138.2M)</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#8b949e">7DAY</tspan><tspan fill="#8b949e"> </tspan><tspan fill="#3fb950">$315.27</tspan><tspan fill="#8b949e"> </tspan><tspan fill="#8b949e">(2.7B)</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#8b949e">30DAY</tspan><tspan fill="#8b949e"> </tspan><tspan fill="#3fb950">$492.88</tspan><tspan fill="#8b949e"> </tspan><tspan fill="#8b949e">(5.9B)</tspan></text>
+  <use href="#bolt" x="28.8" y="247.0" width="9.4" height="9.4" fill="#8b949e"/>
+  <text x="50.0" y="257.0" font-size="15.0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"><tspan fill="#8b949e">zai</tspan><tspan fill="#8b949e"> </tspan><tspan fill="#58a6ff">5hrs 16%/80%</tspan><tspan fill="#8b949e"> (</tspan><tspan fill="#d29922">1h 36m over</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#8b949e">3h 43m</tspan><tspan fill="#8b949e">)</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#58a6ff">7DAY 24%/31%</tspan><tspan fill="#8b949e"> (</tspan><tspan fill="#3fb950">1d 5h under</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#8b949e">4d 19h</tspan><tspan fill="#8b949e">)</tspan></text>
+  <path d="M26.0 285.0 H 840.0" stroke="#21262d"/>
+  <text x="433.0" y="307.0" text-anchor="middle" font-size="11" font-style="italic" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" fill="#8b949e" opacity="0.85">omp native statusline closes the block — placement tracked upstream (oh-my-pi #11100)</text>
+</svg>
