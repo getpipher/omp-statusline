@@ -189,10 +189,12 @@ export default function ompStatusline(pi: SlApi): void {
     const sep = theme.fg("dim", " · ");
     const s = deen.current();
     const lines: string[] = [];
-    if (zaiData && zaiRelevantNow()) lines.push(zaiLine(theme, zaiData, now, sep, todayCredits));
+    // v0.2.1 (RECTOR order): money first, prayers/info, zai last — the native
+    // statusline (omp chrome, immovable bottom line) closes the block.
+    lines.push(moneyLine(theme, money, sep));
     if (s) lines.push(prayerLine(theme, s, sep));
     if (s) lines.push(infoLine(theme, s, now, sep));
-    lines.push(moneyLine(theme, money, sep));
+    if (zaiData && zaiRelevantNow()) lines.push(zaiLine(theme, zaiData, now, sep, todayCredits));
     return lines;
   }
 
