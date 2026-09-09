@@ -60,3 +60,11 @@ export function formatResetAbs(targetMs: number, now: number): string {
     t.getDate() === n.getDate();
   return sameDay ? formatClock(targetMs) : `${MONTHS[t.getMonth()]} ${String(t.getDate()).padStart(2, "0")} ${formatClock(targetMs)}`;
 }
+
+// v0.5.1: Gregorian gloss beside the Hijri date in infoLine — `09 Sep 2026`.
+// Machine-local like the clock; reuses MONTHS for deterministic EN rendering
+// (no Intl/platform variance).
+export function formatGregorian(ts: number): string {
+  const d = new Date(ts);
+  return `${String(d.getDate()).padStart(2, "0")} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}

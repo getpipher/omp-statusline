@@ -7,7 +7,7 @@ import type { SlTheme } from "../src/index.ts";
 import type { DeenSnapshot } from "../src/deen/source.ts";
 import type { PrayerScheduleEntry } from "../src/deen/time.ts";
 import type { QuotaResult } from "../src/quota/zai.ts";
-import { formatResetAbs } from "../src/format.ts";
+import { formatResetAbs, formatGregorian } from "../src/format.ts";
 
 const theme: SlTheme = { fg: (token, text) => `<${token}>${text}</>` };
 const sep = theme.fg("dim", " · ");
@@ -77,6 +77,13 @@ test("formatResetAbs: same-day clock, cross-day month-day, past → now", () => 
   assert.equal(formatResetAbs(lateNight + 2 * HOUR, lateNight), "Sep 05 01:00"); // crosses midnight → padded single-digit day
 });
 
+test("formatGregorian: zero-padded day, EN month from local date, year", () => {
+  assert.equal(formatGregorian(new Date(2026, 8, 7).getTime()), "07 Sep 2026"); // single-digit day padded
+  assert.equal(formatGregorian(new Date(2026, 8, 20).getTime()), "20 Sep 2026"); // double-digit day verbatim
+  assert.equal(formatGregorian(new Date(2026, 11, 31).getTime()), "31 Dec 2026"); // last month of year
+  assert.equal(formatGregorian(new Date(2027, 0, 1).getTime()), "01 Jan 2027"); // year boundary
+});
+
 test("paceText: gap = window × Δ%/100; formats and over/under tokens", () => {
   const H = 3_600_000;
   assert.deepEqual(paceText(5 * H, 34, 74), { text: "2h 0m under", token: "success" }); // RECTOR's worked example
@@ -93,11 +100,11 @@ test("heat: band boundaries are >= on both thresholds", () => {
   assert.equal(heat(90), "error");
 });
 
-test("infoLine: clock · hijri · city, all dim", () => {
+test("infoLine: clock · hijri (gregorian in parens) · city, all dim", () => {
   const now = new Date(2026, 8, 7, 8, 15, 3).getTime(); // local-time construction → 08:15 in any tz
   assert.equal(
     infoLine(theme, deen(SCHEDULE), now, sep),
-    " <dim>󰥔</> <dim>08:15</><dim> · </><dim>25 Rabīʿ al-awwal 1448</><dim> · </><dim>Jakarta</>",
+    " <dim>󰥔</> <dim>08:15</><dim> · </><dim>25 Rabīʿ al-awwal 1448 (07 Sep 2026)</><dim> · </><dim>Jakarta</>",
   );
 });
 

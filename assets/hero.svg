@@ -27,7 +27,7 @@
   <text x="26.0" y="142.0" font-size="12.5" xml:space="preserve" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#3d444d">  // v0.3.0 (RECTOR order): info first, prayers, money, zai</text>
   <rect x="476.0" y="132.5" width="6.5" height="12.5" fill="#58a6ff" opacity="0.55"/>
   <use href="#clock" x="28.9" y="169.2" width="9.2" height="9.2" fill="#8b949e"/>
-  <text x="50.0" y="179.0" font-size="15.0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"><tspan fill="#8b949e">08:15</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#8b949e">25 Rabīʿ al-awwal 1448</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#8b949e">Jakarta</tspan></text>
+  <text x="50.0" y="179.0" font-size="15.0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"><tspan fill="#8b949e">08:15</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#8b949e">25 Rabīʿ al-awwal 1448 (07 Sep 2026)</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#8b949e">Jakarta</tspan></text>
   <use href="#mosque" x="28.4" y="194.7" width="10.2" height="10.2" fill="#8b949e"/>
   <text x="50.0" y="205.0" font-size="15.0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"><tspan fill="#8b949e">Fajr 04:33 ✓</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#3fb950">Dhuhr 11:51 (3h 36m)</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#e6edf3">Asr 15:07</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#e6edf3">Maghrib 17:52</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#e6edf3">Isha 19:01</tspan></text>
   <use href="#coins" x="28.9" y="221.2" width="9.2" height="9.2" fill="#8b949e"/>

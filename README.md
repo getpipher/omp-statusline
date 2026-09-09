@@ -8,7 +8,7 @@
 [![node](https://img.shields.io/badge/node-%E2%89%A5%2020-339933?style=flat-square)](./package.json)
 [![MIT](https://img.shields.io/badge/license-MIT-007ec6?style=flat-square)](./LICENSE)
 
-<img src="assets/hero.svg" alt="omp-statusline rendering four lines beneath the editor in a terminal: clock, Hijri date and city; the five prayer times with a green countdown on the next prayer; API spend and token volume per window; and z.ai quota pace per window with over/under indicators." width="866">
+<img src="assets/hero.svg" alt="omp-statusline rendering four lines beneath the editor in a terminal: clock, Hijri date with Gregorian gloss and city; the five prayer times with a green countdown on the next prayer; API spend and token volume per window; and z.ai quota pace per window with over/under indicators." width="866">
 
 A statusline widget for [omp](https://github.com/can1357/oh-my-pi) (Oh My Pi) — the omp-native successor to [pi-statusline](https://github.com/getpipher/pi-statusline). It renders below the editor in omp's own visual language (` · ` separators, nerd glyphs, theme tokens), and omp's native statusline closes the block beneath it (extension widgets cannot render under it yet — tracked upstream as [can1357/oh-my-pi#11100](https://github.com/can1357/oh-my-pi/issues/11100)).
 
@@ -18,7 +18,7 @@ Render order (top → bottom): **info · prayers · money · zai**.
 
 | Line | Contents |
 |---|---|
-| **info** | Local clock · Hijri date · city — all dim. |
+| **info** | Local clock · Hijri date with Gregorian gloss — `27 Rabīʿ al-awwal 1448 (09 Sep 2026)` · city — all dim. |
 | **prayers** | All five prayers with wall times, from [aladhan](https://api.aladhan.com) (cached per local day, stale-marker on degradation). Past prayers get a dim `✓`; the next prayer is green with a countdown on its segment only — `Dhuhr 11:51 (3h 36m)`. |
 | **money** | API spend + token volume per window: `REPO $68.36 (1.3B)` (all-time for the current project) · `DAY` (since 00:00 local) · `7DAY` / `30DAY` (rolling, hour-aligned). Token volumes are dim, from the same sessions scan. |
 | **zai** | Quota pace per window: `LABEL usage%/elapsed% (pace · reset · absolute)` — e.g. `5hrs 16%/26% (30m under · 3h 43m · 11:58)`. **Provider-gated**: renders only while the active model's provider is `zai` (or the provider is unreadable); vanishes entirely on other providers. |
@@ -79,7 +79,7 @@ State (deen cache) lives beside the config in `~/.omp/agent/omp-statusline/`.
 Forces a zai + deen + money refresh and notifies full source state: quota freshness, today's plan credits, 7-day per-model split, usage streaks, cache-hit rate, prayer city/hijri, and the spend breakdown including subagent share and entry count:
 
 ```
-zai key omp credentials · 5h 16% · weekly 24% · fetched 0m ago · today 7.7K · models 7d glm-5.3 28K · gpt-5.4 9.2K · streak 46d (best 61d) · cache 71% | deen Jakarta · 25 Rabīʿ al-awwal 1448 · fresh | money REPO $68.36 · DAY $26.50 · 7DAY $315.27 · 30DAY $492.88 · sub $11.02 · 1234 entries
+zai key omp credentials · 5h 16% · weekly 24% · fetched 0m ago · today 7.7K · models 7d glm-5.3 28K · gpt-5.4 9.2K · streak 46d (best 61d) · cache 71% | deen Jakarta · 25 Rabīʿ al-awwal 1448 (07 Sep 2026) · fresh | money REPO $68.36 · DAY $26.50 · 7DAY $315.27 · 30DAY $492.88 · sub $11.02 · 1234 entries
 ```
 
 The z.ai dashboard endpoints (`credit-usage/usage-detail`, `credit-usage/activity`) accept the same API key as the quota API — no browser or cookie session needed.
