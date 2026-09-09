@@ -37,6 +37,7 @@ function tmpAuthFile(body: string): string {
 const unconfigured: LiveConfig = {
   zaiPollMs: 180_000,
   authJsonPath: null,
+  accent: true,
   deen: { city: "Jakarta", country: "Indonesia", method: "auto", escalateMinutes: 30 },
 };
 

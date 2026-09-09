@@ -34,7 +34,9 @@ test("scanMoney: windows, dedupe, repo attribution, subagent share", () => {
   const hourFloor = now - (now % HOUR);
   const root = mkdtempSync(join(tmpdir(), "osl-money-"));
   try {
-    const todayA = now - 60_000;          // 1m ago — inside DAY in every tz (not run at 00:00:00)
+    // Noon today: inside the calendar-DAY window at any run time (the old
+    // `now - 60_000` broke when the suite ran just after midnight).
+    const todayA = new Date(now).setHours(12, 0, 0, 0);
     const yesterday = now - 25 * HOUR;    // always outside DAY
     const weekEdgeIn = hourFloor - 7 * DAY;      // inclusive boundary
     const weekEdgeOut = hourFloor - 7 * DAY - 1; // 1ms older → week no, month yes
@@ -50,9 +52,7 @@ test("scanMoney: windows, dedupe, repo attribution, subagent share", () => {
     ];
     fixture(root, "slugA", "sess1.jsonl", "/home/u/repoA", repoA);
     fixture(root, "slugA", "sess1-branch.jsonl", "/home/u/repoA", repoA); // duplicate ids
-
-    // repoA subagent artifact (one level deeper)
-    fixture(root, "slugA/sessdir", "Scout.jsonl", "/home/u/repoA", [{ id: "e3", ts: now - 2 * HOUR, cost: 0.5 }]);
+    fixture(root, "slugA/sessdir", "Scout.jsonl", "/home/u/repoA", [{ id: "e3", ts: todayA + HOUR, cost: 0.5 }]); // subagent artifact, one level deeper
 
     // repoB session: windows yes, repoA attribution no
     fixture(root, "slugB", "sess2.jsonl", "/home/u/repoB", [{ id: "e4", ts: todayA, cost: 10 }]);
