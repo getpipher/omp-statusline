@@ -11,7 +11,6 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { readFileSync, mkdirSync } from "node:fs";
-
 import { fetchQuota, readZaiKey, type QuotaLimit, type QuotaResult } from "./quota/zai.ts";
 import { FIVE_HOUR_MS, WEEK_MS, windowElapsedPercent } from "./quota/project.ts";
 import { formatReset, formatResetAbs, formatGregorian, formatWeekday } from "./format.ts";
@@ -19,6 +18,7 @@ import { createDeenSource, type DeenSnapshot, type DeenSourceConfig } from "./de
 import { zaiStatusDetail } from "./adapters/zai.ts";
 import { scanMoney, type MoneySnapshot } from "./money.ts";
 import { fetchZaiReport } from "./quota/zai-extra.ts";
+import { resolveAccent, type AccentFn, type SessionAccentInputs } from "./accent.ts";
 // Dashboard-style compact credits: 7664 → "7.7K", 28000 → "28K", 37160 → "37.2K", 140000 → "140K".
 export function compactK(v: number): string {
   if (v < 1000) return `${Math.round(v)}`;
@@ -32,6 +32,9 @@ export interface SlTheme {
   // omp theme instance handed to widget factories (probe-verified): fg(token, text)
   // returns theme-colored ANSI — success/warning/error/accent/dim/text…
   fg(token: string, text: string): string;
+  // Theme-derived accent inputs (mirrors omp's Theme.sessionAccentInputs getter).
+  // Real omp theme instances carry it; stubs may omit → resolveAccent returns null.
+  sessionAccentInputs?: SessionAccentInputs;
 }
 interface SlWidgetComponent {
   render(options?: unknown): string[];
@@ -64,6 +67,9 @@ export interface SlCtx {
       opts?: { forceRefresh?: boolean },
     ): Promise<string | null | undefined>;
   };
+  // omp-native session facade — the session NAME feeds the accent hash. Optional:
+  // absent contexts render tokens-only (accent degrades, nothing crashes).
+  sessionManager?: { getSessionName?(): string | undefined };
 }
 interface SlApi {
   on(event: "session_start" | "model_select", handler: (event: unknown, ctx: SlCtx) => void): void;
@@ -87,6 +93,9 @@ export interface LiveConfig {
   // pi-style auth file (PI_AUTH_JSON). A configured path pins the file as the
   // sole source (explicit intent beats the credential store).
   authJsonPath: string | null;
+  // Session-accent colorizer on glyphs + labels (Option A, 2026-09-09);
+  // false = tokens-only. Absent/malformed key → true.
+  accent: boolean;
   deen: DeenSourceConfig;
 }
 
@@ -97,8 +106,9 @@ export function loadLiveConfig(configPath = CONFIG_PATH): LiveConfig {
     zaiPollMs: 180_000,
     authJsonPath: null,
     deen: { city: "Jakarta", country: "Indonesia", method: "auto", escalateMinutes: 30 },
+    accent: true,
   };
-  let parsed: { zai?: { pollIntervalMs?: unknown; authJsonPath?: unknown }; deen?: Record<string, unknown> };
+  let parsed: { zai?: { pollIntervalMs?: unknown; authJsonPath?: unknown }; deen?: Record<string, unknown>; accent?: unknown };
   try {
     parsed = JSON.parse(readFileSync(configPath, "utf8")) as typeof parsed;
   } catch {
@@ -110,6 +120,7 @@ export function loadLiveConfig(configPath = CONFIG_PATH): LiveConfig {
   return {
     zaiPollMs: typeof pollMs === "number" && Number.isFinite(pollMs) && pollMs >= 30_000 ? pollMs : defaults.zaiPollMs,
     authJsonPath: typeof authPath === "string" && authPath !== "" ? authPath : null,
+    accent: typeof parsed.accent === "boolean" ? parsed.accent : true,
     deen: {
       city: typeof parsed.deen?.city === "string" ? parsed.deen.city : defaults.deen.city,
       country: typeof parsed.deen?.country === "string" ? parsed.deen.country : defaults.deen.country,
@@ -187,7 +198,10 @@ export function wallTime(wallMin: number): string {
   return `${String(Math.floor(wallMin / 60)).padStart(2, "0")}:${String(wallMin % 60).padStart(2, "0")}`;
 }
 
-export function zaiLine(theme: SlTheme, data: QuotaResult, now: number, sep: string): string {
+export function zaiLine(theme: SlTheme, data: QuotaResult, now: number, sep: string, accent?: AccentFn | null): string {
+  // Option A: accent carries the row glyph + `zai` label only — segments keep
+  // heat semantics. The inert no-windows row stays dim (degraded-state look).
+  const glyph = accent ?? ((t: string) => theme.fg("dim", t));
   const segs: string[] = [];
   // v0.3.0 (RECTOR): absolute credits + TODAY dropped from the line (TODAY plan
   // credits stay in /sl via fetchZaiReport); windows read percents + pace + reset.
@@ -195,10 +209,13 @@ export function zaiLine(theme: SlTheme, data: QuotaResult, now: number, sep: str
   if (data.fiveHour) segs.push(windowSeg(theme, "5hrs", data.fiveHour, FIVE_HOUR_MS, now));
   if (data.weekly) segs.push(windowSeg(theme, "7DAY", data.weekly, WEEK_MS, now));
   if (segs.length === 0) return theme.fg("dim", " 󰚯 zai — no quota windows");
-  return ` ${theme.fg("dim", "󰚯")} ${theme.fg("dim", "zai")} ${segs.join(sep)}`;
+  return ` ${glyph("󰚯")} ${glyph("zai")} ${segs.join(sep)}`;
 }
 
-export function prayerLine(theme: SlTheme, s: DeenSnapshot, sep: string): string {
+export function prayerLine(theme: SlTheme, s: DeenSnapshot, sep: string, accent?: AccentFn | null): string {
+  // Option A: accent on the 󰣎 glyph only — prayer names keep their state tokens
+  // (past dim ✓, next success, upcoming text); identity never overrides state.
+  const glyph = accent ?? ((t: string) => theme.fg("dim", t));
   const cells = s.schedule.map((e) => {
     if (e.state === "past" || e.state === "adhan") return theme.fg("dim", `${e.name} ${wallTime(e.wallMin)} ✓`);
     if (e.state === "next") {
@@ -209,13 +226,14 @@ export function prayerLine(theme: SlTheme, s: DeenSnapshot, sep: string): string
     return theme.fg("text", `${e.name} ${wallTime(e.wallMin)}`);
   });
   const stale = s.staleMinutes !== null ? `${sep}${theme.fg("warning", `stale ${s.staleMinutes}m`)}` : "";
-  return ` ${theme.fg("dim", "󰣎")} ${cells.join(sep)}${stale}`;
+  return ` ${glyph("󰣎")} ${cells.join(sep)}${stale}`;
 }
 
-export function infoLine(theme: SlTheme, s: DeenSnapshot, now: number, sep: string): string {
+export function infoLine(theme: SlTheme, s: DeenSnapshot, now: number, sep: string, accent?: AccentFn | null): string {
+  const glyph = accent ?? ((t: string) => theme.fg("dim", t));
   const d = new Date(now);
   const clock = `${formatWeekday(now)} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  return ` ${theme.fg("dim", "󰥔")} ${[clock, `${s.hijri} (${formatGregorian(now)})`, s.city].map((part) => theme.fg("dim", part)).join(sep)}`;
+  return ` ${glyph("󰥔")} ${[clock, `${s.hijri} (${formatGregorian(now)})`, s.city].map((part) => theme.fg("dim", part)).join(sep)}`;
 }
 
 
@@ -227,11 +245,14 @@ export function fmtTokens(t: number): string {
   return `${Math.round(t)}`;
 }
 
-export function moneyLine(theme: SlTheme, m: MoneySnapshot, sep: string): string {
+export function moneyLine(theme: SlTheme, m: MoneySnapshot, sep: string, accent?: AccentFn | null): string {
+  // Option A: accent on the 󰄬 glyph + window labels; dollar values stay
+  // success-green (a hash-red session must not make money read as an error).
+  const glyph = accent ?? ((t: string) => theme.fg("dim", t));
   const f = (n: number) => `$${n.toFixed(2)}`;
   const seg = (label: string, value: number, tok: number) =>
-    `${theme.fg("dim", label)} ${theme.fg("success", f(value))} ${theme.fg("dim", `(${fmtTokens(tok)})`)}`;
-  return ` ${theme.fg("dim", "󰄬")} ${[seg("REPO", m.repo, m.repoTok), seg("DAY", m.day, m.dayTok), seg("7DAY", m.week, m.weekTok), seg("30DAY", m.month, m.monthTok)].join(sep)}`;
+    `${glyph(label)} ${theme.fg("success", f(value))} ${theme.fg("dim", `(${fmtTokens(tok)})`)}`;
+  return ` ${glyph("󰄬")} ${[seg("REPO", m.repo, m.repoTok), seg("DAY", m.day, m.dayTok), seg("7DAY", m.week, m.weekTok), seg("30DAY", m.month, m.monthTok)].join(sep)}`;
 }
 // --- extension ---------------------------------------------------------------
 export default function ompStatusline(pi: SlApi): void {
@@ -256,14 +277,18 @@ export default function ompStatusline(pi: SlApi): void {
   function widgetLines(theme: SlTheme): string[] {
     const now = Date.now();
     const sep = theme.fg("dim", " · ");
+    // Option A accent, resolved fresh per render (omp re-hands the theme on
+    // factory calls, so /theme switches re-dress + re-hue on the next tick).
+    // Session renames re-roll the hue at the next 30s tick — no rename event.
+    const accent = resolveAccent(cfg.accent, ctx?.sessionManager?.getSessionName?.(), theme.sessionAccentInputs);
     const s = deen.current();
     const lines: string[] = [];
     // v0.3.0 (RECTOR order): info first, prayers, money (with token volumes),
     // zai last — the native statusline (omp chrome, immovable bottom) closes it.
-    if (s) lines.push(infoLine(theme, s, now, sep));
-    if (s) lines.push(prayerLine(theme, s, sep));
-    lines.push(moneyLine(theme, money, sep));
-    if (zaiData && zaiRelevantNow()) lines.push(zaiLine(theme, zaiData, now, sep));
+    if (s) lines.push(infoLine(theme, s, now, sep, accent));
+    if (s) lines.push(prayerLine(theme, s, sep, accent));
+    lines.push(moneyLine(theme, money, sep, accent));
+    if (zaiData && zaiRelevantNow()) lines.push(zaiLine(theme, zaiData, now, sep, accent));
     return lines;
   }
 

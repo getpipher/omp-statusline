@@ -60,7 +60,8 @@ Or from a checkout: `omp plugin link /path/to/omp-statusline`.
     "country": "Indonesia",
     "method": "auto",
     "escalateMinutes": 30
-  }
+  },
+  "accent": true
 }
 ```
 
@@ -71,6 +72,7 @@ Or from a checkout: `omp plugin link /path/to/omp-statusline`.
 | `deen.city` / `deen.country` | `Jakarta` / `Indonesia` | aladhan lookup. |
 | `deen.method` | `auto` | Calculation method (`auto` → aladhan default). |
 | `deen.escalateMinutes` | `30` | Minutes-until-next-prayer threshold for the `soon` escalation band. |
+| `accent` | `true` | Session-accent colorizer (Option A): row glyphs + `zai`/money labels pick up omp's per-session accent — the same name-hash hue omp paints the editor border and model name with, re-derived per render so `/theme` switches re-dress it. Values keep their semantic tokens (heat bands, next-prayer green, money green) regardless. `false` = tokens-only. Unnamed sessions render tokens-only automatically. |
 
 State (deen cache) lives beside the config in `~/.omp/agent/omp-statusline/`.
 
