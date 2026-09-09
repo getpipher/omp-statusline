@@ -42,3 +42,21 @@ export function formatReset(targetMs: number, now: number): string {
   }
   return `${hours}h ${minutes}m`;
 }
+
+// v0.3.x absolute reset wall-clock (reset-time feature): same-day resets read as
+// clock time (`23:30`); anything further out carries an EN month-day (`Sep 12
+// 04:09`) — no weekday abbreviation (ambiguous when the reset lands on the
+// viewer's own weekday). Machine-local like infoLine's clock; hardcoded EN months
+// keep rendering deterministic (no Intl comma/platform variance).
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
+
+export function formatResetAbs(targetMs: number, now: number): string {
+  if (targetMs <= now) return "now";
+  const t = new Date(targetMs);
+  const n = new Date(now);
+  const sameDay =
+    t.getFullYear() === n.getFullYear() &&
+    t.getMonth() === n.getMonth() &&
+    t.getDate() === n.getDate();
+  return sameDay ? formatClock(targetMs) : `${MONTHS[t.getMonth()]} ${t.getDate()} ${formatClock(targetMs)}`;
+}

@@ -7,6 +7,7 @@ import type { SlTheme } from "../src/index.ts";
 import type { DeenSnapshot } from "../src/deen/source.ts";
 import type { PrayerScheduleEntry } from "../src/deen/time.ts";
 import type { QuotaResult } from "../src/quota/zai.ts";
+import { formatResetAbs } from "../src/format.ts";
 
 const theme: SlTheme = { fg: (token, text) => `<${token}>${text}</>` };
 const sep = theme.fg("dim", " · ");
@@ -63,6 +64,13 @@ test("zaiLine v0.3.0: percents keep heat; paren = pace · reset; lowercase 5hrs 
   assert.ok(zaiLine(theme, both, now, sep).includes("</><dim> · </>"));
   const none: QuotaResult = { tier: "pro", fiveHour: null, weekly: null, fetchedAt: now };
   assert.equal(zaiLine(theme, none, now, sep), "<dim> 󰚯 zai — no quota windows</>");
+});
+
+test("formatResetAbs: same-day clock, cross-day month-day, past → now", () => {
+  const now = new Date(2026, 8, 9, 10, 0).getTime(); // Wed 09 Sep 2026 10:00 local — DST-edge-free
+  assert.equal(formatResetAbs(now + HOUR, now), "11:00");
+  assert.equal(formatResetAbs(now + 20 * HOUR, now), "Sep 10 06:00");
+  assert.equal(formatResetAbs(now - 60_000, now), "now");
 });
 
 test("paceText: gap = window × Δ%/100; formats and over/under tokens", () => {
