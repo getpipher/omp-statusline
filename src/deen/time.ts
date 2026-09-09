@@ -69,3 +69,20 @@ export function escalationState(minutesUntilNext: number, escalateMinutes: numbe
   if (minutesUntilNext <= escalateMinutes) return "soon";
   return "calm";
 }
+
+// v0.6.0 Maghrib rollover: the Islamic day traditionally begins at Maghrib, so the
+// displayed hijri date advances once the city's wall clock reaches the Maghrib
+// minute (not civil midnight). Pure decision — source.ts picks the rendered value.
+export function maghribRolloverActive(prayers: PrayerTimes, now: number, timezone: string): boolean {
+  return wallMinutes(now, timezone) >= parseWallMin(prayers.Maghrib);
+}
+
+// Gregorian DD-MM-YYYY of now+24h in the city tz — the gToH query for the hijri
+// day that begins at this evening's Maghrib. Only called while the rollover is
+// active: past Maghrib means past midday, so +24h lands on the next civil date
+// in every timezone (DST shifts of ±1h cannot cross back).
+export function gToHDateParam(now: number, timezone: string): string {
+  const fmt = new Intl.DateTimeFormat("en-GB", { timeZone: timezone, day: "2-digit", month: "2-digit", year: "numeric" });
+  const [d, m, y] = fmt.format(new Date(now + 86_400_000)).split("/");
+  return `${d}-${m}-${y}`;
+}

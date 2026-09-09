@@ -1,6 +1,6 @@
 // src/deen/source.ts
-import { fetchPrayerTimes, type DeenData, type FetchOpts } from "./api.ts";
-import { computeSchedule, escalationState, type EscalationState, type PrayerScheduleEntry } from "./time.ts";
+import { fetchPrayerTimes, fetchHijriForDate, type DeenData, type FetchOpts } from "./api.ts";
+import { computeSchedule, escalationState, gToHDateParam, maghribRolloverActive, type EscalationState, type PrayerScheduleEntry } from "./time.ts";
 import { isDataFresh, isGeoFresh, loadDeenCache, saveDeenCache, type DeenCacheFile, type GeoInfo } from "./cache.ts";
 
 export interface DeenSourceConfig {
@@ -59,6 +59,7 @@ export interface DeenSourceOpts {
   geoFetchFn?: typeof fetch;
   fetchPrayer?: typeof fetchPrayerTimes;
   fetchGeo?: (fetchImpl?: typeof fetch) => Promise<GeoInfo | null>;
+  fetchHijri?: typeof fetchHijriForDate;
 }
 
 export function createDeenSource(opts: DeenSourceOpts): DeenSource {
@@ -69,17 +70,36 @@ export function createDeenSource(opts: DeenSourceOpts): DeenSource {
   let lastKey = "";
   let lastFetchedAt = 0;
   let geo: GeoInfo | null = null;
+  let lastHijriAttempt = 0;
+
+  // v0.6.0 Maghrib rollover: after the city's Maghrib minute the Islamic day has
+  // already turned, so the snapshot renders tomorrow's hijri — gToH(now+24h) in
+  // the city tz, cached per city-day via DeenCacheFile.tomorrowHijri, retried at
+  // most every HIJRI_RETRY_MS. A cached/degraded value short-circuits the network;
+  // a failed fetch keeps today's hijri (exactly the pre-rollover display).
+  const HIJRI_RETRY_MS = 5 * 60_000;
+  async function resolveHijri(data: DeenData, cachedTomorrow: string | undefined, allowFetch: boolean): Promise<{ hijri: string; tomorrow?: string }> {
+    if (!maghribRolloverActive(data.prayers, now(), data.timezone)) return { hijri: data.hijri };
+    if (cachedTomorrow) return { hijri: cachedTomorrow, tomorrow: cachedTomorrow };
+    if (!allowFetch) return { hijri: data.hijri };
+    const nowMs = now();
+    if (nowMs - lastHijriAttempt < HIJRI_RETRY_MS) return { hijri: data.hijri };
+    lastHijriAttempt = nowMs;
+    const tomorrow = await (opts.fetchHijri ?? fetchHijriForDate)(gToHDateParam(nowMs, data.timezone), opts.fetchFn);
+    if (!tomorrow) return { hijri: data.hijri };
+    return { hijri: tomorrow, tomorrow };
+  }
 
   // P2-8: a defensive failure (e.g. an invalid IANA timezone reaching Intl inside
   // computeSchedule) yields a null snapshot rather than crashing the render path.
-  function toSnapshot(data: DeenData, city: string, staleMinutes: number | null, cfg: DeenSourceConfig): DeenSnapshot | null {
+  function toSnapshot(data: DeenData, city: string, staleMinutes: number | null, cfg: DeenSourceConfig, hijri: string): DeenSnapshot | null {
     try {
       const schedule = computeSchedule(data.prayers, now(), data.timezone);
       const minutesUntilNext = schedule.find((e) => e.state === "next" || e.state === "adhan")?.minutesUntil ?? 0;
       return {
         schedule,
         escalation: escalationState(minutesUntilNext, cfg.escalateMinutes),
-        hijri: data.hijri,
+        hijri,
         city,
         timezone: data.timezone,
         staleMinutes,
@@ -119,7 +139,16 @@ export function createDeenSource(opts: DeenSourceOpts): DeenSource {
       const key = `${city}|${country}|${cfg.method}|${localDateKey(nowMs, keyTz)}`;
 
       if (!force && cached && isDataFresh(cached, key, nowMs)) {
-        snapshot = toSnapshot(cached.data, city, null, cfg);
+        const rolled = await resolveHijri(cached.data, cached.tomorrowHijri, true);
+        if (rolled.tomorrow && rolled.tomorrow !== cached.tomorrowHijri) {
+          // Persist the evening's gToH answer without resetting data freshness.
+          try {
+            saveDeenCache(opts.cachePath, { ...cached, tomorrowHijri: rolled.tomorrow });
+          } catch {
+            /* non-fatal; snapshot still serves */
+          }
+        }
+        snapshot = toSnapshot(cached.data, city, null, cfg, rolled.hijri);
         lastKey = key;
         lastFetchedAt = cached.fetchedAt;
         return;
@@ -127,7 +156,14 @@ export function createDeenSource(opts: DeenSourceOpts): DeenSource {
 
       const data = await fetchPrayer({ city, country, method: cfg.method, fetchImpl: opts.fetchFn });
       if (data) {
-        const file: DeenCacheFile = { key, fetchedAt: nowMs, data, ...(geo ? { geo } : cached?.geo ? { geo: cached.geo } : {}) };
+        const rolled = await resolveHijri(data, cached?.key === key ? cached.tomorrowHijri : undefined, true);
+        const file: DeenCacheFile = {
+          key,
+          fetchedAt: nowMs,
+          data,
+          ...(geo ? { geo } : cached?.geo ? { geo: cached.geo } : {}),
+          ...(rolled.tomorrow ? { tomorrowHijri: rolled.tomorrow } : {}),
+        };
         // Non-fatal write: a locked-down cache dir (EACCES) or full disk degrades to
         // serving the fresh snapshot from memory — refresh() must never reject here.
         try {
@@ -137,7 +173,7 @@ export function createDeenSource(opts: DeenSourceOpts): DeenSource {
         }
         lastKey = key;
         lastFetchedAt = nowMs;
-        snapshot = toSnapshot(data, city, null, cfg);
+        snapshot = toSnapshot(data, city, null, cfg, rolled.hijri);
         return;
       }
 
@@ -147,7 +183,10 @@ export function createDeenSource(opts: DeenSourceOpts): DeenSource {
         return;
       }
       if (cached && cached.data.timezone === keyTz) {
-        snapshot = toSnapshot(cached.data, city, Math.floor((nowMs - cached.fetchedAt) / 60_000), cfg);
+        // Degraded: serve stale cache; the rollover only reuses a persisted value —
+        // no network attempts while the API is already failing.
+        const rolled = await resolveHijri(cached.data, cached.tomorrowHijri, false);
+        snapshot = toSnapshot(cached.data, city, Math.floor((nowMs - cached.fetchedAt) / 60_000), cfg, rolled.hijri);
         return;
       }
       snapshot = null;
