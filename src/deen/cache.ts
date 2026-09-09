@@ -15,6 +15,9 @@ export interface DeenCacheFile {
   fetchedAt: number;
   data: DeenData;
   geo?: GeoInfo;
+  // v0.6.0 Maghrib rollover: gToH(tomorrow) answer for this city-day evening —
+  // present once the rollover fetched it; keyed implicitly by `key`.
+  tomorrowHijri?: string;
 }
 
 const DAY_MS = 86_400_000;

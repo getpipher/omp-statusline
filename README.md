@@ -18,7 +18,7 @@ Render order (top → bottom): **info · prayers · money · zai**.
 
 | Line | Contents |
 |---|---|
-| **info** | Local weekday + clock — `Wed 21:12` · Hijri date with Gregorian gloss — `27 Rabīʿ al-awwal 1448 (09 Sep 2026)` · city — all dim. |
+| **info** | Local weekday + clock — `Wed 21:12` · Hijri date with Gregorian gloss — `27 Rabīʿ al-awwal 1448 (09 Sep 2026)` · city — all dim. The Hijri date advances at Maghrib, not civil midnight (evening value via Aladhan `gToH`, cached per city-day; on failure it stays on today's date). |
 | **prayers** | All five prayers with wall times, from [aladhan](https://api.aladhan.com) (cached per local day, stale-marker on degradation). Past prayers get a dim `✓`; the next prayer is green with a countdown on its segment only — `Dhuhr 11:51 (3h 36m)`. |
 | **money** | API spend + token volume per window: `REPO $68.36 (1.3B)` (all-time for the current project) · `DAY` (since 00:00 local) · `7DAY` / `30DAY` (rolling, hour-aligned). Token volumes are dim, from the same sessions scan. |
 | **zai** | Quota pace per window: `LABEL usage%/elapsed% (pace · reset · absolute)` — e.g. `5hrs 16%/26% (30m under · 3h 43m · 11:58)`. **Provider-gated**: renders only while the active model's provider is `zai` (or the provider is unreadable); vanishes entirely on other providers. |
