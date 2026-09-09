@@ -14,7 +14,7 @@ import { readFileSync, mkdirSync } from "node:fs";
 
 import { fetchQuota, readZaiKey, type QuotaLimit, type QuotaResult } from "./quota/zai.ts";
 import { FIVE_HOUR_MS, WEEK_MS, windowElapsedPercent } from "./quota/project.ts";
-import { formatReset } from "./format.ts";
+import { formatReset, formatResetAbs } from "./format.ts";
 import { createDeenSource, type DeenSnapshot, type DeenSourceConfig } from "./deen/source.ts";
 import { zaiStatusDetail } from "./adapters/zai.ts";
 import { scanMoney, type MoneySnapshot } from "./money.ts";
@@ -178,6 +178,7 @@ function windowSeg(theme: SlTheme, label: string, lim: QuotaLimit, lengthMs: num
     theme.fg(pace.token, pace.text),
     theme.fg("dim", " · "),
     theme.fg("dim", formatReset(lim.nextResetTime, now)),
+    theme.fg("dim", ` · ${formatResetAbs(lim.nextResetTime, now)}`),
     theme.fg("dim", ")"),
   ].join("");
 }
