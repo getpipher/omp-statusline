@@ -21,7 +21,7 @@ Render order (top → bottom): **info · prayers · money · zai**.
 | **info** | Local clock · Hijri date · city — all dim. |
 | **prayers** | All five prayers with wall times, from [aladhan](https://api.aladhan.com) (cached per local day, stale-marker on degradation). Past prayers get a dim `✓`; the next prayer is green with a countdown on its segment only — `Dhuhr 11:51 (3h 36m)`. |
 | **money** | API spend + token volume per window: `REPO $68.36 (1.3B)` (all-time for the current project) · `DAY` (since 00:00 local) · `7DAY` / `30DAY` (rolling, hour-aligned). Token volumes are dim, from the same sessions scan. |
-| **zai** | Quota pace per window: `LABEL usage%/elapsed% (pace · reset)` — e.g. `5hrs 16%/80% (1h 36m over · 3h 43m)`. **Provider-gated**: renders only while the active model's provider is `zai` (or the provider is unreadable); vanishes entirely on other providers. |
+| **zai** | Quota pace per window: `LABEL usage%/elapsed% (pace · reset · absolute)` — e.g. `5hrs 16%/26% (30m under · 3h 43m · 11:58)`. **Provider-gated**: renders only while the active model's provider is `zai` (or the provider is unreadable); vanishes entirely on other providers. |
 
 **Pace** — `window × (usage% − elapsed%)/100` — renders `1h 36m over` (orange: burning faster than the clock, quota exhausts early by that much) or `1d 5h under` (green: behind the clock). Percent heat: accent < 70%, warning ≥ 70%, error ≥ 90% — raw, so over-quota stays error-red while display caps at `100%+`.
 

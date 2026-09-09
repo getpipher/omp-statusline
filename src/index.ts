@@ -1,5 +1,5 @@
 // omp-statusline — 4-line belowEditor widget, RECTOR-approved 2026-09-07:
-//   󰚯 zai 5HRS 16%/25% (3h 43m) · 7DAY 24%/31% (4d 19h)   ← provider-gated (zai only)
+//   󰚯 zai 5hrs 16%/26% (30m under · 3h 43m · 11:58) · 7DAY 33%/31% (3h 22m over · 4d 19h · Sep 12 03:30)   ← provider-gated (zai only)
 //   󰣎 Fajr 04:33 ✓ · Dhuhr 11:51 (3h 36m) · Asr 15:07 · Maghrib 17:52 · Isha 19:01
 //   󰥔 08:15 · 25 Rabīʿ al-awwal 1448 · Jakarta
 //   󰄬 REPO $68.36 · DAY $26.50 · 7DAY $315.27 · 30DAY $492.88
@@ -14,7 +14,7 @@ import { readFileSync, mkdirSync } from "node:fs";
 
 import { fetchQuota, readZaiKey, type QuotaLimit, type QuotaResult } from "./quota/zai.ts";
 import { FIVE_HOUR_MS, WEEK_MS, windowElapsedPercent } from "./quota/project.ts";
-import { formatReset } from "./format.ts";
+import { formatReset, formatResetAbs } from "./format.ts";
 import { createDeenSource, type DeenSnapshot, type DeenSourceConfig } from "./deen/source.ts";
 import { zaiStatusDetail } from "./adapters/zai.ts";
 import { scanMoney, type MoneySnapshot } from "./money.ts";
@@ -178,6 +178,7 @@ function windowSeg(theme: SlTheme, label: string, lim: QuotaLimit, lengthMs: num
     theme.fg(pace.token, pace.text),
     theme.fg("dim", " · "),
     theme.fg("dim", formatReset(lim.nextResetTime, now)),
+    theme.fg("dim", ` · ${formatResetAbs(lim.nextResetTime, now)}`),
     theme.fg("dim", ")"),
   ].join("");
 }
