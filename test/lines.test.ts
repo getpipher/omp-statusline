@@ -72,6 +72,9 @@ test("formatResetAbs: same-day clock, cross-day month-day, past → now", () => 
   assert.equal(formatResetAbs(now + HOUR, now), "11:00");
   assert.equal(formatResetAbs(now + 20 * HOUR, now), "Sep 10 06:00");
   assert.equal(formatResetAbs(now - 60_000, now), "now");
+  const lateNight = new Date(2026, 8, 4, 23, 0).getTime(); // Fri 04 Sep 23:00 local
+  assert.equal(formatResetAbs(lateNight + 59 * 60_000, lateNight), "23:59"); // same-day branch near midnight
+  assert.equal(formatResetAbs(lateNight + 2 * HOUR, lateNight), "Sep 05 01:00"); // crosses midnight → padded single-digit day
 });
 
 test("paceText: gap = window × Δ%/100; formats and over/under tokens", () => {
