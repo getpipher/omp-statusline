@@ -7,7 +7,7 @@ import type { SlTheme } from "../src/index.ts";
 import type { DeenSnapshot } from "../src/deen/source.ts";
 import type { PrayerScheduleEntry } from "../src/deen/time.ts";
 import type { QuotaResult } from "../src/quota/zai.ts";
-import { formatResetAbs, formatGregorian } from "../src/format.ts";
+import { formatResetAbs, formatGregorian, formatWeekday } from "../src/format.ts";
 
 const theme: SlTheme = { fg: (token, text) => `<${token}>${text}</>` };
 const sep = theme.fg("dim", " · ");
@@ -62,7 +62,7 @@ test("zaiLine: percents keep heat; paren = pace · countdown · absolute; lowerc
   assert.ok(zaiLine(theme, data(105), now, sep).includes("<error>5hrs 100%+/80%"));
   const both: QuotaResult = { tier: "pro", fiveHour: fiveHour(16), weekly: { ...fiveHour(24), nextResetTime: now + 3 * DAY + 18 * HOUR }, fetchedAt: now };
   assert.ok(zaiLine(theme, both, now, sep).includes("</><dim> · </>"));
-  assert.ok(zaiLine(theme, both, now, sep).includes("<dim> · Sep 13 04:00</>")); // cross-day → month-day form
+  assert.ok(zaiLine(theme, both, now, sep).includes("<dim> · Sun Sep 13 04:00</>")); // cross-day → weekday month-day form
   const none: QuotaResult = { tier: "pro", fiveHour: null, weekly: null, fetchedAt: now };
   assert.equal(zaiLine(theme, none, now, sep), "<dim> 󰚯 zai — no quota windows</>");
 });
@@ -70,11 +70,11 @@ test("zaiLine: percents keep heat; paren = pace · countdown · absolute; lowerc
 test("formatResetAbs: same-day clock, cross-day month-day, past → now", () => {
   const now = new Date(2026, 8, 9, 10, 0).getTime(); // Wed 09 Sep 2026 10:00 local — DST-edge-free
   assert.equal(formatResetAbs(now + HOUR, now), "11:00");
-  assert.equal(formatResetAbs(now + 20 * HOUR, now), "Sep 10 06:00");
+  assert.equal(formatResetAbs(now + 20 * HOUR, now), "Thu Sep 10 06:00");
   assert.equal(formatResetAbs(now - 60_000, now), "now");
   const lateNight = new Date(2026, 8, 4, 23, 0).getTime(); // Fri 04 Sep 23:00 local
   assert.equal(formatResetAbs(lateNight + 59 * 60_000, lateNight), "23:59"); // same-day branch near midnight
-  assert.equal(formatResetAbs(lateNight + 2 * HOUR, lateNight), "Sep 05 01:00"); // crosses midnight → padded single-digit day
+  assert.equal(formatResetAbs(lateNight + 2 * HOUR, lateNight), "Sat Sep 05 01:00"); // crosses midnight → weekday + padded single-digit day
 });
 
 test("formatGregorian: zero-padded day, EN month from local date, year", () => {
@@ -82,6 +82,13 @@ test("formatGregorian: zero-padded day, EN month from local date, year", () => {
   assert.equal(formatGregorian(new Date(2026, 8, 20).getTime()), "20 Sep 2026"); // double-digit day verbatim
   assert.equal(formatGregorian(new Date(2026, 11, 31).getTime()), "31 Dec 2026"); // last month of year
   assert.equal(formatGregorian(new Date(2027, 0, 1).getTime()), "01 Jan 2027"); // year boundary
+});
+
+test("formatWeekday: 3-letter EN abbrev from the local date", () => {
+  assert.equal(formatWeekday(new Date(2026, 8, 7).getTime()), "Mon"); // 07 Sep 2026
+  assert.equal(formatWeekday(new Date(2026, 8, 12).getTime()), "Sat"); // 12 Sep 2026
+  assert.equal(formatWeekday(new Date(2026, 8, 13).getTime()), "Sun"); // 13 Sep 2026
+  assert.equal(formatWeekday(new Date(2026, 8, 6).getTime()), "Sun"); // week wraps on Sunday
 });
 
 test("paceText: gap = window × Δ%/100; formats and over/under tokens", () => {
@@ -104,7 +111,7 @@ test("infoLine: clock · hijri (gregorian in parens) · city, all dim", () => {
   const now = new Date(2026, 8, 7, 8, 15, 3).getTime(); // local-time construction → 08:15 in any tz
   assert.equal(
     infoLine(theme, deen(SCHEDULE), now, sep),
-    " <dim>󰥔</> <dim>08:15</><dim> · </><dim>25 Rabīʿ al-awwal 1448 (07 Sep 2026)</><dim> · </><dim>Jakarta</>",
+    " <dim>󰥔</> <dim>Mon 08:15</><dim> · </><dim>25 Rabīʿ al-awwal 1448 (07 Sep 2026)</><dim> · </><dim>Jakarta</>",
   );
 });
 

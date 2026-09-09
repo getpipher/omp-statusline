@@ -44,10 +44,10 @@ export function formatReset(targetMs: number, now: number): string {
 }
 
 // v0.5.0 absolute reset wall-clock (reset-time feature): same-day resets read as
-// clock time (`23:30`); anything further out carries an EN month-day (`Sep 12
-// 04:09`) — no weekday abbreviation (ambiguous when the reset lands on the
-// viewer's own weekday). Machine-local like infoLine's clock; hardcoded EN months
-// keep rendering deterministic (no Intl comma/platform variance).
+// clock time (`23:30`); anything further out carries an EN weekday + month-day
+// (`Sat Sep 12 04:09`, v0.6.0 per RECTOR — the original "no weekday" stance is
+// superseded). Machine-local like infoLine's clock; hardcoded EN tables keep
+// rendering deterministic (no Intl comma/platform variance).
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
 
 export function formatResetAbs(targetMs: number, now: number): string {
@@ -58,7 +58,9 @@ export function formatResetAbs(targetMs: number, now: number): string {
     t.getFullYear() === n.getFullYear() &&
     t.getMonth() === n.getMonth() &&
     t.getDate() === n.getDate();
-  return sameDay ? formatClock(targetMs) : `${MONTHS[t.getMonth()]} ${String(t.getDate()).padStart(2, "0")} ${formatClock(targetMs)}`;
+  return sameDay
+    ? formatClock(targetMs)
+    : `${WEEKDAYS[t.getDay()]} ${MONTHS[t.getMonth()]} ${String(t.getDate()).padStart(2, "0")} ${formatClock(targetMs)}`;
 }
 
 // v0.5.1: Gregorian gloss beside the Hijri date in infoLine — `09 Sep 2026`.
@@ -67,4 +69,12 @@ export function formatResetAbs(targetMs: number, now: number): string {
 export function formatGregorian(ts: number): string {
   const d = new Date(ts);
   return `${String(d.getDate()).padStart(2, "0")} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+// v0.6.0: 3-letter EN weekday abbreviations, machine-local like MONTHS above
+// (deterministic, no Intl/platform variance).
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
+
+export function formatWeekday(ts: number): string {
+  return WEEKDAYS[new Date(ts).getDay()];
 }
