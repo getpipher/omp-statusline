@@ -1,7 +1,7 @@
 // omp-statusline — 4-line belowEditor widget, RECTOR-approved 2026-09-07:
 //   󰚯 zai 5hrs 16%/26% (30m under · 3h 43m · 11:58) · 7DAY 33%/31% (3h 22m over · 4d 19h · Sep 12 03:30)   ← provider-gated (zai only)
 //   󰣎 Fajr 04:33 ✓ · Dhuhr 11:51 (3h 36m) · Asr 15:07 · Maghrib 17:52 · Isha 19:01
-//   󰥔 08:15 · 25 Rabīʿ al-awwal 1448 · Jakarta
+//   󰥔 08:15 · 25 Rabīʿ al-awwal 1448 (07 Sep 2026) · Jakarta
 //   󰄬 REPO $68.36 · DAY $26.50 · 7DAY $315.27 · 30DAY $492.88
 // Data layer vendored from @getpipher/pi-statusline (quota/zai, format, deen, adapters);
 // money comes from the omp sessions disk-scan (money.ts — subagent-inclusive). State
@@ -14,7 +14,7 @@ import { readFileSync, mkdirSync } from "node:fs";
 
 import { fetchQuota, readZaiKey, type QuotaLimit, type QuotaResult } from "./quota/zai.ts";
 import { FIVE_HOUR_MS, WEEK_MS, windowElapsedPercent } from "./quota/project.ts";
-import { formatReset, formatResetAbs } from "./format.ts";
+import { formatReset, formatResetAbs, formatGregorian } from "./format.ts";
 import { createDeenSource, type DeenSnapshot, type DeenSourceConfig } from "./deen/source.ts";
 import { zaiStatusDetail } from "./adapters/zai.ts";
 import { scanMoney, type MoneySnapshot } from "./money.ts";
@@ -215,7 +215,7 @@ export function prayerLine(theme: SlTheme, s: DeenSnapshot, sep: string): string
 export function infoLine(theme: SlTheme, s: DeenSnapshot, now: number, sep: string): string {
   const d = new Date(now);
   const clock = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  return ` ${theme.fg("dim", "󰥔")} ${[clock, s.hijri, s.city].map((part) => theme.fg("dim", part)).join(sep)}`;
+  return ` ${theme.fg("dim", "󰥔")} ${[clock, `${s.hijri} (${formatGregorian(now)})`, s.city].map((part) => theme.fg("dim", part)).join(sep)}`;
 }
 
 
@@ -365,7 +365,7 @@ export default function ompStatusline(pi: SlApi): void {
           report && report.cacheHitRate !== null ? `cache ${Math.round(report.cacheHitRate * 100)}%` : "",
         ].filter(Boolean).join(" · ")
         : resolved ? "no quota data" : "no key";
-      const deenPart = s ? `${s.city} · ${s.hijri}${s.staleMinutes !== null ? ` · stale ${s.staleMinutes}m` : " · fresh"}` : "no data";
+      const deenPart = s ? `${s.city} · ${s.hijri} (${formatGregorian(Date.now())})${s.staleMinutes !== null ? ` · stale ${s.staleMinutes}m` : " · fresh"}` : "no data";
       const moneyPart = `REPO $${money.repo.toFixed(2)} · DAY $${money.day.toFixed(2)} · 7DAY $${money.week.toFixed(2)} · 30DAY $${money.month.toFixed(2)} · sub $${money.sub.toFixed(2)} · ${money.entries} entries`;
       cmdCtx.ui.notify(`zai ${zaiPart} | deen ${deenPart} | money ${moneyPart}`, "info");
     },
