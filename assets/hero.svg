@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="866" height="329" viewBox="0 0 866 329" role="img">
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="329" viewBox="0 0 980 329" role="img">
   <title>omp-statusline widget rendering below the editor</title>
   <defs>
     <symbol id="clock" viewBox="0 0 100 100">
@@ -14,12 +14,12 @@
       <path d="M261 188H171L2 360Q1 360 171 532H261L306 610L537 668L601 438L556 360L601 282L537 52L306 110ZM266 198 441 150 340 326H137ZM500 184 548 360 500 536 399 360ZM266 522 137 394H340L441 570Z" transform="translate(-0.3 108.4) scale(0.1623 -0.1623)"/>
     </symbol>
   </defs>
-  <rect x="0.5" y="0.5" width="865" height="328" rx="10" fill="#0d1117" stroke="#30363d"/>
-  <path d="M0.5 33.5 V10 A9.5 9.5 0 0 1 10 0.5 H856 A9.5 9.5 0 0 1 865.5 10 V33.5 Z" fill="#161b22" stroke="#30363d"/>
+  <rect x="0.5" y="0.5" width="979" height="328" rx="10" fill="#0d1117" stroke="#30363d"/>
+  <path d="M0.5 33.5 V10 A9.5 9.5 0 0 1 10 0.5 H969 A9.5 9.5 0 0 1 978.5 10 V33.5 Z" fill="#161b22" stroke="#30363d"/>
   <circle cx="18" cy="17.0" r="4.5" fill="#ff5f57" opacity="0.9"/>
   <circle cx="35" cy="17.0" r="4.5" fill="#febc2e" opacity="0.9"/>
   <circle cx="52" cy="17.0" r="4.5" fill="#28c840" opacity="0.9"/>
-  <text x="433.0" y="21.0" text-anchor="middle" font-size="11.5" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" fill="#6e7681">omp — ~/local-dev/getpipher/omp-statusline</text>
+  <text x="490.0" y="21.0" text-anchor="middle" font-size="11.5" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" fill="#6e7681">omp — ~/local-dev/getpipher/omp-statusline</text>
   <text x="26.0" y="58.0" font-size="12.5" xml:space="preserve" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#3d444d">export default function ompStatusline(pi: SlApi): void {</text>
   <text x="26.0" y="79.0" font-size="12.5" xml:space="preserve" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#3d444d">  const cfg = loadLiveConfig();</text>
   <text x="26.0" y="100.0" font-size="12.5" xml:space="preserve" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" fill="#3d444d">  const deen = createDeenSource({ cachePath: DEEN_CACHE, config: () =&gt; cfg.deen });</text>
@@ -33,7 +33,7 @@
   <use href="#coins" x="28.9" y="221.2" width="9.2" height="9.2" fill="#8b949e"/>
   <text x="50.0" y="231.0" font-size="15.0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"><tspan fill="#8b949e">REPO</tspan><tspan fill="#8b949e"> </tspan><tspan fill="#3fb950">$68.36</tspan><tspan fill="#8b949e"> </tspan><tspan fill="#8b949e">(1.3B)</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#8b949e">DAY</tspan><tspan fill="#8b949e"> </tspan><tspan fill="#3fb950">$26.50</tspan><tspan fill="#8b949e"> </tspan><tspan fill="#8b949e">(138.2M)</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#8b949e">7DAY</tspan><tspan fill="#8b949e"> </tspan><tspan fill="#3fb950">$315.27</tspan><tspan fill="#8b949e"> </tspan><tspan fill="#8b949e">(2.7B)</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#8b949e">30DAY</tspan><tspan fill="#8b949e"> </tspan><tspan fill="#3fb950">$492.88</tspan><tspan fill="#8b949e"> </tspan><tspan fill="#8b949e">(5.9B)</tspan></text>
   <use href="#bolt" x="28.8" y="247.0" width="9.4" height="9.4" fill="#8b949e"/>
-  <text x="50.0" y="257.0" font-size="15.0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"><tspan fill="#8b949e">zai</tspan><tspan fill="#8b949e"> </tspan><tspan fill="#58a6ff">5hrs 16%/80%</tspan><tspan fill="#8b949e"> (</tspan><tspan fill="#d29922">1h 36m over</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#8b949e">3h 43m</tspan><tspan fill="#8b949e">)</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#58a6ff">7DAY 24%/31%</tspan><tspan fill="#8b949e"> (</tspan><tspan fill="#3fb950">1d 5h under</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#8b949e">4d 19h</tspan><tspan fill="#8b949e">)</tspan></text>
-  <path d="M26.0 285.0 H 840.0" stroke="#21262d"/>
-  <text x="433.0" y="307.0" text-anchor="middle" font-size="11" font-style="italic" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" fill="#8b949e" opacity="0.85">omp native statusline closes the block — placement tracked upstream (oh-my-pi #11100)</text>
+  <text x="50.0" y="257.0" font-size="15.0" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"><tspan fill="#8b949e">zai</tspan><tspan fill="#8b949e"> </tspan><tspan fill="#58a6ff">5hrs 16%/80%</tspan><tspan fill="#8b949e"> (</tspan><tspan fill="#d29922">1h 36m over</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#8b949e">3h 43m</tspan><tspan fill="#8b949e"> · 11:58</tspan><tspan fill="#8b949e">)</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#58a6ff">7DAY 24%/31%</tspan><tspan fill="#8b949e"> (</tspan><tspan fill="#3fb950">1d 5h under</tspan><tspan fill="#8b949e"> · </tspan><tspan fill="#8b949e">4d 19h</tspan><tspan fill="#8b949e"> · Sep 12 03:15</tspan><tspan fill="#8b949e">)</tspan></text>
+  <path d="M26.0 285.0 H 954.0" stroke="#21262d"/>
+  <text x="490.0" y="307.0" text-anchor="middle" font-size="11" font-style="italic" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" fill="#8b949e" opacity="0.85">omp native statusline closes the block — placement tracked upstream (oh-my-pi #11100)</text>
 </svg>

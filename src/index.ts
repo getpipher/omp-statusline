@@ -1,5 +1,5 @@
 // omp-statusline — 4-line belowEditor widget, RECTOR-approved 2026-09-07:
-//   󰚯 zai 5HRS 16%/25% (3h 43m) · 7DAY 24%/31% (4d 19h)   ← provider-gated (zai only)
+//   󰚯 zai 5hrs 16%/80% (1h 36m over · 3h 43m · 11:58) · 7DAY 24%/31% (1d 5h under · 4d 19h · Sep 12 03:15)   ← provider-gated (zai only)
 //   󰣎 Fajr 04:33 ✓ · Dhuhr 11:51 (3h 36m) · Asr 15:07 · Maghrib 17:52 · Isha 19:01
 //   󰥔 08:15 · 25 Rabīʿ al-awwal 1448 · Jakarta
 //   󰄬 REPO $68.36 · DAY $26.50 · 7DAY $315.27 · 30DAY $492.88
