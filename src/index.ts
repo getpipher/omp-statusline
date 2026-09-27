@@ -70,6 +70,12 @@ export interface SlCtx {
   // omp-native session facade — the session NAME feeds the accent hash. Optional:
   // absent contexts render tokens-only (accent degrades, nothing crashes).
   sessionManager?: { getSessionName?(): string | undefined };
+  // Managed timers (omp ExtensionContext): callback throws/rejections route through
+  // the extension error channel instead of uncaughtException session teardown;
+  // unref'd + auto-cleared on session_shutdown. Optional → raw global timers are
+  // the fallback on hosts without them (pre-managed-timer omp behaves as before).
+  setInterval?(fn: () => void, ms: number): unknown;
+  clearTimer?(timer: unknown): void;
 }
 interface SlApi {
   on(event: "session_start" | "model_select", handler: (event: unknown, ctx: SlCtx) => void): void;
@@ -266,6 +272,15 @@ export default function ompStatusline(pi: SlApi): void {
   let started = false;
   let warnedNoKey = false;
 
+  // Managed timers when the host exposes them (omp ≥18.1: a throw inside the tick
+  // is logged through the extension error channel — NOT a fatal session teardown —
+  // and the timer is unref'd + auto-cleared on session_shutdown). Raw fallback only
+  // fires on hosts without ctx.setInterval, i.e. exactly the old behavior.
+  function startTimer(slCtx: SlCtx, fn: () => void, ms: number): void {
+    if (typeof slCtx.setInterval === "function") slCtx.setInterval(fn, ms);
+    else setInterval(fn, ms);
+  }
+
   // zai quota gates on the ACTIVE provider (adapter.matches semantics): plan data is
   // only relevant while zai models burn it. Re-read per render so /model switches take
   // effect on the next tick (instantly when model_select fires).
@@ -358,10 +373,10 @@ export default function ompStatusline(pi: SlApi): void {
     void pollZai();
     void pollDeen();
     pollMoney();
-    setInterval(() => {
+    startTimer(slCtx, () => {
       renderWidget(); // countdowns (prayer + quota resets) move without new data
     }, 30_000);
-    setInterval(() => {
+    startTimer(slCtx, () => {
       void pollZai();
       void pollDeen();
       pollMoney(); // full rescan ~0.9s off the render path

@@ -125,6 +125,19 @@ export interface QuotaPollerOpts<T = unknown> {
   onRefresh?: () => void;
   /** Typed fetch — REQUIRED since the poller genericized (Task 8). */
   fetchFn: (apiKey: string) => Promise<T | null>;
+  /**
+   * Managed-timer source (omp ExtensionContext, structural — no host import):
+   * ticks run with handler-dispatch isolation, so a sync throw / rejected promise
+   * is logged through the extension error channel instead of surfacing as a fatal
+   * uncaughtException, and the timer is unref'd + auto-cleared on session_shutdown.
+   * Absent → raw global timers with the legacy swallowed-rejection behavior.
+   */
+  timers?: TimerSource;
+}
+
+export interface TimerSource {
+  setInterval(fn: () => void, ms: number): unknown;
+  clearTimer(timer: unknown): void;
 }
 
 export interface QuotaPoller<T = unknown> {
@@ -136,7 +149,7 @@ export interface QuotaPoller<T = unknown> {
 
 export function createQuotaPoller<T>(opts: QuotaPollerOpts<T>): QuotaPoller<T> {
   let cache: T | null = null;
-  let timer: ReturnType<typeof setInterval> | null = null;
+  let timer: { managed: boolean; handle: unknown } | null = null;
   let polling = false;
 
   async function doPoll(): Promise<void> {
@@ -162,19 +175,27 @@ export function createQuotaPoller<T>(opts: QuotaPollerOpts<T>): QuotaPoller<T> {
     get: () => cache,
     start: () => {
       if (timer) return;
-      // Fetch errors degrade to null inside doPoll; this swallows anything unexpected
-      // so a fire-and-forget rejection can never escape as an unhandled rejection.
+      // doPoll is non-rejecting by construction (fetch errors degrade to null
+      // inside; onRefresh is guarded) — the raw-path catch is belt-and-braces so
+      // a fire-and-forget rejection can never escape as an unhandled rejection.
+      // On the managed path the tick RETURNS the promise: omp logs any rejection
+      // through the extension error channel instead of swallowing it silently.
       void doPoll().catch(() => {}); // fire immediately on start
-      timer = setInterval(() => void doPoll().catch(() => {}), opts.intervalMs);
-      // The poller must not hold the host process open — interactive sessions keep
-      // the loop alive via the TUI (polling cadence unaffected); print mode exits.
-      timer.unref?.();
+      if (opts.timers) {
+        timer = { managed: true, handle: opts.timers.setInterval(() => doPoll(), opts.intervalMs) };
+      } else {
+        const raw: NodeJS.Timeout = setInterval(() => void doPoll().catch(() => {}), opts.intervalMs);
+        // The poller must not hold the host process open — interactive sessions keep
+        // the loop alive via the TUI (polling cadence unaffected); print mode exits.
+        raw.unref?.();
+        timer = { managed: false, handle: raw };
+      }
     },
     stop: () => {
-      if (timer) {
-        clearInterval(timer);
-        timer = null;
-      }
+      if (!timer) return;
+      if (timer.managed) opts.timers?.clearTimer(timer.handle);
+      else clearInterval(timer.handle as NodeJS.Timeout);
+      timer = null;
     },
     refresh: doPoll,
   };

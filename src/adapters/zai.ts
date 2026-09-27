@@ -1,5 +1,5 @@
 // src/adapters/zai.ts
-import { createQuotaPoller, fetchQuota, readZaiKey, type QuotaLimit, type QuotaPoller, type QuotaResult } from "../quota/zai.ts";
+import { createQuotaPoller, fetchQuota, readZaiKey, type QuotaLimit, type QuotaPoller, type QuotaResult, type TimerSource } from "../quota/zai.ts";
 import { FIVE_HOUR_MS, WEEK_MS, windowElapsedPercent } from "../quota/project.ts";
 import { formatReset } from "../format.ts";
 import type { AdapterSegment, ProviderRowAdapter } from "./types.ts";
@@ -10,6 +10,9 @@ export interface ZaiAdapterDeps {
   pollIntervalMs: () => number; // live from config (re-read on restartAdapters)
   fetchFn?: typeof fetchQuota;  // test seam
   onRefresh?: () => void;
+  // Managed-timer source (omp ctx) — flows into the poller so its ticks get
+  // handler-dispatch isolation instead of fatal-on-throw raw timers.
+  timers?: TimerSource;
 }
 
 // Window segment pieces (v0.4.7, RECTOR format): `LABEL usage%/window-elapsed% (reset)` —
@@ -81,6 +84,7 @@ export function createZaiAdapter(deps: ZaiAdapterDeps): ProviderRowAdapter<Quota
       intervalMs: deps.pollIntervalMs(),
       onRefresh: deps.onRefresh,
       fetchFn: deps.fetchFn ?? fetchQuota,
+      timers: deps.timers,
     });
     return true;
   }
