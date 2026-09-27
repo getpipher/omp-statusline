@@ -1,7 +1,7 @@
 // omp-statusline — 4-line belowEditor widget, RECTOR-approved 2026-09-07:
 //   󰚯 zai 5hrs 16%/26% (30m under · 3h 43m · 11:58) · 7DAY 33%/31% (3h 22m over · 4d 19h · Sat Sep 12 03:30)   ← provider-gated (zai only)
 //   󰣎 Fajr 04:33 ✓ · Dhuhr 11:51 (3h 36m) · Asr 15:07 · Maghrib 17:52 · Isha 19:01
-//   󰥔 Mon 08:15 · 25 Rabīʿ al-awwal 1448 (07 Sep 2026) · Jakarta
+//   󰥔 Mon 08:15 · 25 Rabīʿ al-awwal 1448 (07 Sep 2026) · Jakarta · omp 18.3.4 · sl 0.6.2
 //   󰄬 REPO $68.36 · DAY $26.50 · 7DAY $315.27 · 30DAY $492.88
 // Data layer vendored from @getpipher/pi-statusline (quota/zai, format, deen, adapters);
 // money comes from the omp sessions disk-scan (money.ts — subagent-inclusive). State
@@ -19,6 +19,7 @@ import { zaiStatusDetail } from "./adapters/zai.ts";
 import { scanMoney, type MoneySnapshot } from "./money.ts";
 import { fetchZaiReport } from "./quota/zai-extra.ts";
 import { resolveAccent, type AccentFn, type SessionAccentInputs } from "./accent.ts";
+import { ompVersion, slVersion } from "./versions.ts";
 // Dashboard-style compact credits: 7664 → "7.7K", 28000 → "28K", 37160 → "37.2K", 140000 → "140K".
 export function compactK(v: number): string {
   if (v < 1000) return `${Math.round(v)}`;
@@ -235,11 +236,22 @@ export function prayerLine(theme: SlTheme, s: DeenSnapshot, sep: string, accent?
   return ` ${glyph("󰣎")} ${cells.join(sep)}${stale}`;
 }
 
-export function infoLine(theme: SlTheme, s: DeenSnapshot, now: number, sep: string, accent?: AccentFn | null): string {
+// v0.6.2 clock-line stamp: `· omp <host> · sl <plugin>` appended after the city,
+// dim like every other segment (RECTOR-locked design, 2026-09-27). Segments whose
+// version is unavailable are omitted — never rendered as a placeholder lie.
+export interface VersionStamp {
+  omp: string | null;
+  sl: string | null;
+}
+
+export function infoLine(theme: SlTheme, s: DeenSnapshot, now: number, sep: string, accent?: AccentFn | null, stamp?: VersionStamp): string {
   const glyph = accent ?? ((t: string) => theme.fg("dim", t));
   const d = new Date(now);
   const clock = `${formatWeekday(now)} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  return ` ${glyph("󰥔")} ${[clock, `${s.hijri} (${formatGregorian(now)})`, s.city].map((part) => theme.fg("dim", part)).join(sep)}`;
+  const parts = [clock, `${s.hijri} (${formatGregorian(now)})`, s.city];
+  if (stamp?.omp) parts.push(`omp ${stamp.omp}`);
+  if (stamp?.sl) parts.push(`sl ${stamp.sl}`);
+  return ` ${glyph("󰥔")} ${parts.map((part) => theme.fg("dim", part)).join(sep)}`;
 }
 
 
@@ -271,6 +283,9 @@ export default function ompStatusline(pi: SlApi): void {
   let ctx: SlCtx | null = null;
   let started = false;
   let warnedNoKey = false;
+  // Clock-line stamp: sl resolves synchronously (package.json next to the source);
+  // omp resolves async (marker file, else one `omp --version` spawn) and re-renders.
+  let stamp: VersionStamp = { omp: null, sl: slVersion() };
 
   // Managed timers when the host exposes them (omp ≥18.1: a throw inside the tick
   // is logged through the extension error channel — NOT a fatal session teardown —
@@ -300,7 +315,7 @@ export default function ompStatusline(pi: SlApi): void {
     const lines: string[] = [];
     // v0.3.0 (RECTOR order): info first, prayers, money (with token volumes),
     // zai last — the native statusline (omp chrome, immovable bottom) closes it.
-    if (s) lines.push(infoLine(theme, s, now, sep, accent));
+    if (s) lines.push(infoLine(theme, s, now, sep, accent, stamp));
     if (s) lines.push(prayerLine(theme, s, sep, accent));
     lines.push(moneyLine(theme, money, sep, accent));
     if (zaiData && zaiRelevantNow()) lines.push(zaiLine(theme, zaiData, now, sep, accent));
@@ -373,6 +388,12 @@ export default function ompStatusline(pi: SlApi): void {
     void pollZai();
     void pollDeen();
     pollMoney();
+    void ompVersion().then((omp) => {
+      if (omp && omp !== stamp.omp) {
+        stamp = { ...stamp, omp };
+        renderWidget(); // tick would cover it; render immediately so the stamp never flickers in late
+      }
+    });
     startTimer(slCtx, () => {
       renderWidget(); // countdowns (prayer + quota resets) move without new data
     }, 30_000);

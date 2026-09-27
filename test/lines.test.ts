@@ -115,6 +115,21 @@ test("infoLine: clock · hijri (gregorian in parens) · city, all dim", () => {
   );
 });
 
+test("infoLine v0.6.2: stamp appends omp + sl after the city, dim, same separators", () => {
+  const now = new Date(2026, 8, 7, 8, 15, 3).getTime();
+  assert.equal(
+    infoLine(theme, deen(SCHEDULE), now, sep, null, { omp: "18.3.4", sl: "0.6.1" }),
+    " <dim>󰥔</> <dim>Mon 08:15</><dim> · </><dim>25 Rabīʿ al-awwal 1448 (07 Sep 2026)</><dim> · </><dim>Jakarta</><dim> · </><dim>omp 18.3.4</><dim> · </><dim>sl 0.6.1</>",
+  );
+});
+
+test("infoLine stamp: null omp drops its segment; sl still renders", () => {
+  const now = new Date(2026, 8, 7, 8, 15, 3).getTime();
+  const line = infoLine(theme, deen(SCHEDULE), now, sep, null, { omp: null, sl: "0.6.1" });
+  assert.ok(line.endsWith("<dim>Jakarta</><dim> · </><dim>sl 0.6.1</>"));
+  assert.ok(!line.includes("omp "));
+});
+
 test("moneyLine v0.3.0: every window carries dim token parens; REPO included", () => {
   const line = moneyLine(
     theme,
