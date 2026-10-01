@@ -1,18 +1,11 @@
-// src/versions.ts — clock-line version stamp sources (v0.6.2). Both resolved once
-// per process and cached: the stamp describes the RUNNING omp + the INSTALLED sl,
+// src/versions.ts — clock-line version stamp sources. Both resolved once per
+// process and cached: the stamp describes the RUNNING omp + the INSTALLED sl,
 // neither of which changes while the session lives.
 import { readFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
 const execFileP = promisify(execFile);
-
-// omp rewrites this marker on every launch — it tracks the running version without
-// spawning anything. NOT createRequire("@oh-my-pi/..."): omp ships as a single
-// bundled binary, so no host package.json is resolvable from inside the plugin.
-const LAST_CHANGELOG = join(homedir(), ".omp", "agent", "last-changelog-version");
 
 const SEMVER_RE = /\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.+-]+)?/;
 
@@ -22,20 +15,30 @@ export function extractSemver(text: string): string | null {
   return SEMVER_RE.exec(text.trim())?.[0] ?? null;
 }
 
-// Primary source: the launch marker file. Missing/garbled → null (caller falls
-// back to spawning `omp --version`).
-export function readOmpVersionFile(path: string = LAST_CHANGELOG): string | null {
-  try {
-    return extractSemver(readFileSync(path, "utf8"));
-  } catch {
-    return null;
-  }
+// Guard over `--version` output: omp prints "omp/18.4.8" (legacy: "omp version …").
+// A bare "22.11.0" — what `node --version`/`bun --version` print when execPath
+// points at a plain runtime instead of omp (source/dev runs) — must NOT become
+// the omp stamp, so anything without the omp prefix is rejected.
+export function parseOmpVersionOutput(text: string): string | null {
+  const t = text.trim();
+  return /^omp[/ ]/.test(t) ? extractSemver(t) : null;
 }
 
-async function spawnOmpVersion(): Promise<string | null> {
+// Primary (and only) source: spawn THE RUNNING BINARY. Inside the plugin,
+// process.execPath is whatever binary actually launched omp — brew Cellar path,
+// npm-global bin, curl-installed ~/.omp/bin, asdf shim target, source build — so
+// the answer is install-agnostic and stays correct for sessions resumed across
+// an upgrade, where spawning PATH `omp` would report the NEW binary. Spawn
+// failure (e.g. brew cleanup deleted the old Cellar mid-session) → null: the
+// stamp segment is omitted upstream, never rendered as a placeholder lie.
+// (v0.6.2 read ~/.omp/agent/last-changelog-version first instead — proven wrong
+// in the field: omp only writes that marker when its config-gated startup
+// changelog actually displays, so it goes stale across silent upgrades and is
+// global state shared by every session, old and new.)
+export async function spawnOmpVersion(bin: string): Promise<string | null> {
   try {
-    const { stdout } = await execFileP("omp", ["--version"], { timeout: 5_000 });
-    return extractSemver(stdout);
+    const { stdout } = await execFileP(bin, ["--version"], { timeout: 5_000 });
+    return parseOmpVersionOutput(stdout);
   } catch {
     return null;
   }
@@ -43,10 +46,10 @@ async function spawnOmpVersion(): Promise<string | null> {
 
 let ompCache: Promise<string | null> | undefined;
 
-// File first (no process spawn); `omp --version` fallback, cached process-long so
-// the fallback fires at most once even across sessions in the same process.
+// Running-binary spawn, cached process-long so it fires at most once per
+// process even across sessions in the same process.
 export function ompVersion(): Promise<string | null> {
-  ompCache ??= (async () => readOmpVersionFile() ?? await spawnOmpVersion())();
+  ompCache ??= spawnOmpVersion(process.execPath);
   return ompCache;
 }
 

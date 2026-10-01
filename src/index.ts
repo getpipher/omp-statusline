@@ -284,7 +284,8 @@ export default function ompStatusline(pi: SlApi): void {
   let started = false;
   let warnedNoKey = false;
   // Clock-line stamp: sl resolves synchronously (package.json next to the source);
-  // omp resolves async (marker file, else one `omp --version` spawn) and re-renders.
+  // omp resolves async (one `--version` spawn of the RUNNING binary,
+  // process.execPath — install-agnostic) and re-renders.
   let stamp: VersionStamp = { omp: null, sl: slVersion() };
 
   // Managed timers when the host exposes them (omp ≥18.1: a throw inside the tick
