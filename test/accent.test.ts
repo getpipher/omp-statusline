@@ -5,7 +5,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { getSessionAccentHex, nameToHash, resolveAccent, hexToOklch, oklchToHex } from "../src/accent.ts";
-import { zaiLine, prayerLine, infoLine, moneyLine } from "../src/index.ts";
+import { zaiLines, versionLine, prayerLine, infoLine, moneyLine } from "../src/index.ts";
 import type { SlTheme } from "../src/index.ts";
 import type { DeenSnapshot } from "../src/deen/source.ts";
 import type { PrayerScheduleEntry } from "../src/deen/time.ts";
@@ -119,8 +119,8 @@ test("resolveAccent: truecolor colorizer; off/unnamed/no-inputs/malformed → nu
   assert.equal(resolveAccent(true, "omp-statusline", { accentHex: "nope", colorHexes: [] }), null);
 });
 
-test("zaiLine: accent wraps glyph + label only; heat segments untouched", () => {
-  const line = zaiLine(theme, quota(16), NOW, sep, accent);
+test("zaiLines: accent wraps glyph + label only; heat segments untouched", () => {
+  const [line] = zaiLines(theme, quota(16), NOW, accent);
   assert.ok(line.startsWith(" <ac>󰚯</ac> <ac>zai</ac> <accent>5hrs 16%/80%"));
   // value spans stay token-colored — the accent fn never sees them
   assert.ok(line.includes("<accent>5hrs 16%/80%"));
@@ -149,8 +149,16 @@ test("infoLine: accent on 󰥔 only; content stays dim", () => {
   assert.ok(!line.includes("<ac>Tue"));
 });
 
+test("versionLine: accent on 󰚦 + omp/sl labels; versions stay dim", () => {
+  const line = versionLine(theme, { omp: "18.7.0", sl: "0.6.3" }, accent);
+  assert.ok(line); // both versions present → never null
+  assert.ok(line.startsWith(" <ac>󰚦</ac> <ac>omp</ac> <dim>18.7.0</>"));
+  assert.ok(line.includes("<ac>sl</ac> <dim>0.6.3</>"));
+  assert.ok(!line.includes("<ac>18"));
+});
+
 test("accent=null degrades byte-identical to baseline (no raw ANSI leaks)", () => {
-  const [zai, prayer, info, mon] = [zaiLine(theme, quota(16), NOW, sep, null), prayerLine(theme, deen, sep, null), infoLine(theme, deen, NOW, sep, null), moneyLine(theme, money, sep, null)];
+  const [zai, prayer, info, mon] = [zaiLines(theme, quota(16), NOW, null).join("\n"), prayerLine(theme, deen, sep, null), infoLine(theme, deen, NOW, sep, null), moneyLine(theme, money, sep, null)];
   for (const line of [zai, prayer, info, mon]) assert.ok(!line.includes("["), `raw escape leaked: ${line}`);
   assert.equal(mon, moneyLine(theme, money, sep));
   assert.equal(prayer, prayerLine(theme, deen, sep));
