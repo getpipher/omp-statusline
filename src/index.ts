@@ -1,8 +1,12 @@
-// omp-statusline — 4-line belowEditor widget, RECTOR-approved 2026-09-07:
-//   󰚯 zai 5hrs 16%/26% (30m under · 3h 43m · 11:58) · 7DAY 33%/31% (3h 22m over · 4d 19h · Sat Sep 12 03:30)   ← provider-gated (zai only)
+// omp-statusline — 6-line belowEditor widget, RECTOR-approved 2026-10-07 (v0.7.0:
+// zai split to one row per window + dedicated version row — narrow-canvas
+// mitigation, Tern tern-sdk#1; supersedes the 4-line 2026-09-07 layout):
+//   󰥔 Mon 08:15 · 25 Rabīʿ al-awwal 1448 (07 Sep 2026) · Jakarta
 //   󰣎 Fajr 04:33 ✓ · Dhuhr 11:51 (3h 36m) · Asr 15:07 · Maghrib 17:52 · Isha 19:01
-//   󰥔 Mon 08:15 · 25 Rabīʿ al-awwal 1448 (07 Sep 2026) · Jakarta · omp 18.3.4 · sl 0.6.2
-//   󰄬 REPO $68.36 · DAY $26.50 · 7DAY $315.27 · 30DAY $492.88
+//   󰄬 REPO $68.36 (117.6M) · DAY $26.50 (4.0M) · 7DAY $315.27 (4.0B) · 30DAY $492.88 (11.3B)
+//   󰚯 zai 5hrs 16%/26% (30m under · 3h 43m · 11:58)              ← provider-gated (zai only)
+//   󰚯 zai 7DAY 33%/31% (3h 22m over · 4d 19h · Sat Sep 12 03:30) ← provider-gated (zai only)
+//   󰚦 omp 18.3.4 · sl 0.6.2                                      ← omitted when versions unknown
 // Data layer vendored from @getpipher/pi-statusline (quota/zai, format, deen, adapters);
 // money comes from the omp sessions disk-scan (money.ts — subagent-inclusive). State
 // lives under ~/.omp/agent/omp-statusline/. The zai key resolves from omp's own
@@ -205,18 +209,22 @@ export function wallTime(wallMin: number): string {
   return `${String(Math.floor(wallMin / 60)).padStart(2, "0")}:${String(wallMin % 60).padStart(2, "0")}`;
 }
 
-export function zaiLine(theme: SlTheme, data: QuotaResult, now: number, sep: string, accent?: AccentFn | null): string {
+// v0.7.0 (RECTOR, 2026-10-07): one row per quota window — the joined line hit 107
+// cells and overflowed narrow canvases (Tern paints ~92 cols regardless of the
+// reported width; tern-sdk#1). Per-window rows keep every segment with no
+// compaction, and both rows carry the full 󰚯 zai prefix.
+export function zaiLines(theme: SlTheme, data: QuotaResult, now: number, accent?: AccentFn | null): string[] {
   // Option A: accent carries the row glyph + `zai` label only — segments keep
   // heat semantics. The inert no-windows row stays dim (degraded-state look).
   const glyph = accent ?? ((t: string) => theme.fg("dim", t));
-  const segs: string[] = [];
+  const rows: string[] = [];
   // v0.3.0 (RECTOR): absolute credits + TODAY dropped from the line (TODAY plan
   // credits stay in /sl via fetchZaiReport); windows read percents + pace + reset.
   // Labels as approved in mock: lowercase "5hrs", uppercase "7DAY".
-  if (data.fiveHour) segs.push(windowSeg(theme, "5hrs", data.fiveHour, FIVE_HOUR_MS, now));
-  if (data.weekly) segs.push(windowSeg(theme, "7DAY", data.weekly, WEEK_MS, now));
-  if (segs.length === 0) return theme.fg("dim", " 󰚯 zai — no quota windows");
-  return ` ${glyph("󰚯")} ${glyph("zai")} ${segs.join(sep)}`;
+  if (data.fiveHour) rows.push(` ${glyph("󰚯")} ${glyph("zai")} ${windowSeg(theme, "5hrs", data.fiveHour, FIVE_HOUR_MS, now)}`);
+  if (data.weekly) rows.push(` ${glyph("󰚯")} ${glyph("zai")} ${windowSeg(theme, "7DAY", data.weekly, WEEK_MS, now)}`);
+  if (rows.length === 0) rows.push(theme.fg("dim", " 󰚯 zai — no quota windows"));
+  return rows;
 }
 
 export function prayerLine(theme: SlTheme, s: DeenSnapshot, sep: string, accent?: AccentFn | null): string {
@@ -236,22 +244,35 @@ export function prayerLine(theme: SlTheme, s: DeenSnapshot, sep: string, accent?
   return ` ${glyph("󰣎")} ${cells.join(sep)}${stale}`;
 }
 
-// v0.6.2 clock-line stamp: `· omp <host> · sl <plugin>` appended after the city,
-// dim like every other segment (RECTOR-locked design, 2026-09-27). Segments whose
-// version is unavailable are omitted — never rendered as a placeholder lie.
+// Version stamps: `omp <host> · sl <plugin>`. v0.6.2 pinned them to the info
+// line; v0.7.0 (RECTOR, 2026-10-07) moves them to a dedicated 󰚦 version row
+// (versionLine). Segments whose version is unavailable are omitted — never
+// rendered as a placeholder lie.
 export interface VersionStamp {
   omp: string | null;
   sl: string | null;
 }
 
-export function infoLine(theme: SlTheme, s: DeenSnapshot, now: number, sep: string, accent?: AccentFn | null, stamp?: VersionStamp): string {
+export function infoLine(theme: SlTheme, s: DeenSnapshot, now: number, sep: string, accent?: AccentFn | null): string {
   const glyph = accent ?? ((t: string) => theme.fg("dim", t));
   const d = new Date(now);
   const clock = `${formatWeekday(now)} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
   const parts = [clock, `${s.hijri} (${formatGregorian(now)})`, s.city];
-  if (stamp?.omp) parts.push(`omp ${stamp.omp}`);
-  if (stamp?.sl) parts.push(`sl ${stamp.sl}`);
   return ` ${glyph("󰥔")} ${parts.map((part) => theme.fg("dim", part)).join(sep)}`;
+}
+
+// v0.7.0 dedicated version row (RECTOR, 2026-10-07): the money-row treatment —
+// 󰚦 glyph + accent omp/sl labels, dim values. Renders as the widget's last row,
+// unconditionally (no zai-fallback chain: zai rows come and go, this one stays).
+// Returns null when NO version is known — an all-lies row is worse than no row
+// (same contract as the old v0.6.2 stamp segments).
+export function versionLine(theme: SlTheme, stamp: VersionStamp, accent?: AccentFn | null): string | null {
+  const glyph = accent ?? ((t: string) => theme.fg("dim", t));
+  const parts: string[] = [];
+  if (stamp.omp) parts.push(`${glyph("omp")} ${theme.fg("dim", stamp.omp)}`);
+  if (stamp.sl) parts.push(`${glyph("sl")} ${theme.fg("dim", stamp.sl)}`);
+  if (parts.length === 0) return null;
+  return ` ${glyph("󰚦")} ${parts.join(theme.fg("dim", " · "))}`;
 }
 
 
@@ -316,10 +337,13 @@ export default function ompStatusline(pi: SlApi): void {
     const lines: string[] = [];
     // v0.3.0 (RECTOR order): info first, prayers, money (with token volumes),
     // zai last — the native statusline (omp chrome, immovable bottom) closes it.
-    if (s) lines.push(infoLine(theme, s, now, sep, accent, stamp));
+    // v0.7.0: zai splits to one row per window; the version row closes the widget.
+    if (s) lines.push(infoLine(theme, s, now, sep, accent));
     if (s) lines.push(prayerLine(theme, s, sep, accent));
     lines.push(moneyLine(theme, money, sep, accent));
-    if (zaiData && zaiRelevantNow()) lines.push(zaiLine(theme, zaiData, now, sep, accent));
+    if (zaiData && zaiRelevantNow()) lines.push(...zaiLines(theme, zaiData, now, accent));
+    const version = versionLine(theme, stamp, accent);
+    if (version) lines.push(version);
     return lines;
   }
 

@@ -1,7 +1,7 @@
 {
   "name": "@getpipher/omp-statusline",
-  "version": "0.6.3",
-  "description": "Four-line omp statusline widget: zai coding-plan quota (provider-gated), prayer times, hijri clock, and API-spend ledger (REPO/DAY/7DAY/30DAY, subagent-inclusive).",
+  "version": "0.7.0",
+  "description": "Six-line omp statusline widget: hijri clock, prayer times, API-spend ledger (REPO/DAY/7DAY/30DAY, subagent-inclusive), per-window zai coding-plan quota rows (provider-gated), and an omp/sl version row.",
   "keywords": [
     "pi-package",
     "pi-extension",
