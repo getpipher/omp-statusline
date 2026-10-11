@@ -67,9 +67,12 @@ export function ternVersionSource(env: NodeJS.ProcessEnv): string | null {
 let ternCache: string | null | undefined;
 
 // Env read, cached process-long: Tern's version cannot change while the process
-// lives (TERM_PROGRAM/TERM_PROGRAM_VERSION are fixed before omp launches).
+// lives (TERM_PROGRAM/TERM_PROGRAM_VERSION are fixed before omp launches). The
+// explicit undefined check caches null misses too (slVersion's pattern) — `??=`
+// would re-run the gate on every call in the common non-Tern case.
 export function ternVersion(): string | null {
-  ternCache ??= ternVersionSource(process.env);
+  if (ternCache !== undefined) return ternCache;
+  ternCache = ternVersionSource(process.env);
   return ternCache;
 }
 

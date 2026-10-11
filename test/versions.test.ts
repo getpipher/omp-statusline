@@ -64,6 +64,7 @@ test("ternVersionSource: missing or garbage version under tern → null (segment
   assert.equal(ternVersionSource({ TERM_PROGRAM: "tern" }), null);
   assert.equal(ternVersionSource({ TERM_PROGRAM: "tern", TERM_PROGRAM_VERSION: "" }), null);
   assert.equal(ternVersionSource({ TERM_PROGRAM: "tern", TERM_PROGRAM_VERSION: "dev" }), null);
+  assert.equal(ternVersionSource({ TERM_PROGRAM: "tern", TERM_PROGRAM_VERSION: "0.7" }), null); // two-component shape
 });
 
 test("ternVersionSource: gate is tern-exclusive — other terminals with a version set rejected", () => {
@@ -76,7 +77,46 @@ test("ternVersionSource: strict case-sensitive match — 'Tern' is not tern; abs
   assert.equal(ternVersionSource({}), null);
 });
 
-test("ternVersion: env read cached process-long — stable across calls", () => {
-  const first = ternVersion();
-  assert.equal(ternVersion(), first);
+test("ternVersion: caches the miss process-long — later env changes don't resurrect the segment", () => {
+  // First ternVersion() call in this suite: the module cache is guaranteed empty,
+  // so a non-Tern env must populate the null cache and hold it (slVersion pattern).
+  const savedProgram = process.env.TERM_PROGRAM;
+  const savedVersion = process.env.TERM_PROGRAM_VERSION;
+  try {
+    delete process.env.TERM_PROGRAM;
+    delete process.env.TERM_PROGRAM_VERSION;
+    assert.equal(ternVersion(), null);
+    process.env.TERM_PROGRAM = "tern";
+    process.env.TERM_PROGRAM_VERSION = "9.9.9";
+    assert.equal(ternVersion(), null); // a ??= cache would recompute here and yield "9.9.9"
+  } finally {
+    if (savedProgram === undefined) delete process.env.TERM_PROGRAM;
+    else process.env.TERM_PROGRAM = savedProgram;
+    if (savedVersion === undefined) delete process.env.TERM_PROGRAM_VERSION;
+    else process.env.TERM_PROGRAM_VERSION = savedVersion;
+  }
+});
+
+test("ternVersion: fresh module instance applies the gate to the live env and caches its value", async () => {
+  const savedProgram = process.env.TERM_PROGRAM;
+  const savedVersion = process.env.TERM_PROGRAM_VERSION;
+  try {
+    process.env.TERM_PROGRAM = "tern";
+    process.env.TERM_PROGRAM_VERSION = "9.9.9";
+    // Static import cannot work here: it would bind to the SAME module record the
+    // suite already imported (ternCache already populated by the miss test above),
+    // so only a runtime-selected query-param specifier yields a fresh instance.
+    // This is a test intentionally exercising the module-loading boundary.
+    const fresh = (await import(`../src/versions.ts?gate-live-${Date.now()}`)) as {
+      ternVersion: () => string | null;
+    };
+    assert.equal(fresh.ternVersion(), "9.9.9");
+    process.env.TERM_PROGRAM_VERSION = "8.8.8";
+    assert.equal(fresh.ternVersion(), "9.9.9"); // cached process-long
+  } finally {
+    if (savedProgram === undefined) delete process.env.TERM_PROGRAM;
+    else process.env.TERM_PROGRAM = savedProgram;
+    if (savedVersion === undefined) delete process.env.TERM_PROGRAM_VERSION;
+    else process.env.TERM_PROGRAM_VERSION = savedVersion;
+  }
 });

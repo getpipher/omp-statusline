@@ -8,7 +8,7 @@
 [![node](https://img.shields.io/badge/node-%E2%89%A5%2020-339933?style=flat-square)](./package.json)
 [![MIT](https://img.shields.io/badge/license-MIT-007ec6?style=flat-square)](./LICENSE)
 
-<img src="assets/hero.svg" alt="omp-statusline rendering its rows beneath the editor in a terminal: clock, Hijri date with Gregorian gloss and city; the five prayer times with a green countdown on the next prayer; API spend and token volume per window; one z.ai quota pace row per window with over/under indicators; and an omp/sl version line." width="866">
+<img src="assets/hero.svg" alt="omp-statusline rendering its rows beneath the editor in a terminal: clock, Hijri date with Gregorian gloss and city; the five prayer times with a green countdown on the next prayer; API spend and token volume per window; one z.ai quota pace row per window with over/under indicators; and an omp/sl/tern version line." width="866">
 
 A statusline widget for [omp](https://github.com/can1357/oh-my-pi) (Oh My Pi) — the omp-native successor to [pi-statusline](https://github.com/getpipher/pi-statusline). It renders below the editor in omp's own visual language (` · ` separators, nerd glyphs, theme tokens), and omp's native statusline closes the block beneath it (extension widgets cannot render under it yet — tracked upstream as [can1357/oh-my-pi#11100](https://github.com/can1357/oh-my-pi/issues/11100)).
 

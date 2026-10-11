@@ -134,6 +134,13 @@ test("versionLine: no versions → null, never a placeholder row", () => {
   assert.equal(versionLine(theme, { omp: null, sl: null, tern: null }), null);
 });
 
+test("versionLine: tern omitted (optional field) → exact v0.7.0 two-segment row", () => {
+  assert.equal(
+    versionLine(theme, { omp: "18.9.0", sl: "0.8.0" }),
+    " <dim>󰚦</> <dim>omp</> <dim>18.9.0</><dim> · </><dim>sl</> <dim>0.8.0</>",
+  );
+});
+
 test("versionLine: tern segment closes the row — omp · sl · tern order (RECTOR mock)", () => {
   assert.equal(
     versionLine(theme, { omp: "18.9.0", sl: "0.7.0", tern: "0.7.2" }),
