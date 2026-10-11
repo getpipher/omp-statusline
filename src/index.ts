@@ -6,7 +6,7 @@
 //   󰄬 REPO $68.36 (117.6M) · DAY $26.50 (4.0M) · 7DAY $315.27 (4.0B) · 30DAY $492.88 (11.3B)
 //   󰚯 zai 5hrs 16%/26% (30m under · 3h 43m · 11:58)              ← provider-gated (zai only)
 //   󰚯 zai 7DAY 33%/31% (3h 22m over · 4d 19h · Sat Sep 12 03:30) ← provider-gated (zai only)
-//   󰚦 omp 18.3.4 · sl 0.6.2 · tern 0.5.3                         ← tern only under Tern; omitted when versions unknown
+//   󰚦 omp 18.9.0 · sl 0.8.0 · tern 0.7.2                         ← tern only under Tern; omitted when versions unknown
 // Data layer vendored from @getpipher/pi-statusline (quota/zai, format, deen, adapters);
 // money comes from the omp sessions disk-scan (money.ts — subagent-inclusive). State
 // lives under ~/.omp/agent/omp-statusline/. The zai key resolves from omp's own
