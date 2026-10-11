@@ -18,17 +18,17 @@ Render order (top → bottom): **info · prayers · money · zai (one row per wi
 
 | Line | Contents |
 |---|---|
-| **info** | Local weekday + clock — `Wed 21:12` · Hijri date with Gregorian gloss — `27 Rabīʿ al-awwal 1448 (09 Sep 2026)` · city — all dim. The Hijri date advances at Maghrib, not civil midnight (evening value via Aladhan `gToH`, cached per city-day; on failure it stays on today's date). |
-| **prayers** | All five prayers with wall times, from [aladhan](https://api.aladhan.com) (cached per local day, stale-marker on degradation). Past prayers get a dim `✓`; the next prayer is green with a countdown on its segment only — `Dhuhr 11:51 (3h 36m)`. |
+| **info** | Local weekday + clock — `Sun 21:12` · Hijri date with Gregorian gloss — `1 Jumādá al-ūlá 1448 (11 Oct 2026)` · city — all dim. The Hijri date advances at Maghrib, not civil midnight (evening value via Aladhan `gToH`, cached per city-day; on failure it stays on today's date). |
+| **prayers** | All five prayers with wall times, from [aladhan](https://api.aladhan.com) (cached per local day, stale-marker on degradation). Past prayers get a dim `✓`; the next prayer is green with a countdown on its segment only — `Fajr 04:15 (7h 03m)`. |
 | **money** | API spend + token volume per window: `REPO $68.36 (1.3B)` (all-time for the current project) · `DAY` (since 00:00 local) · `7DAY` / `30DAY` (rolling, hour-aligned). Token volumes are dim, from the same sessions scan. |
-| **zai** | One row per quota window — `󰚯 zai 5hrs …` / `󰚯 zai 7DAY …` — each `LABEL usage%/elapsed% (pace · reset · absolute)`, e.g. `5hrs 16%/26% (30m under · 3h 43m · 11:58)`. **Provider-gated**: renders only while the active model's provider is `zai` (or the provider is unreadable); vanishes entirely on other providers. |
+| **zai** | One row per quota window — `󰚯 zai 5hrs …` / `󰚯 zai 7DAY …` — each `LABEL usage%/elapsed% (pace · reset · absolute)`, e.g. `5hrs 16%/26% (30m under · 3h 42m · Mon Oct 12 00:54)` / `7DAY 33%/32% (1h 41m over · 4d 19h · Fri Oct 16 16:12)`. **Provider-gated**: renders only while the active model's provider is `zai` (or the provider is unreadable); vanishes entirely on other providers. |
 | **versions** | `󰚦 omp 18.9.0 · sl 0.8.0 · tern 0.7.2` — host from one `--version` spawn of the **running omp binary** (`process.execPath`, so it is install-agnostic (brew/npm/curl/source) and correct even for sessions resumed across an upgrade); plugin from its own package.json; tern from the `TERM_PROGRAM`/`TERM_PROGRAM_VERSION` env the [Tern terminal](https://stencil.so) sets — **Tern-gated**: strict env match, segment omitted outside Tern or when the version is unknown. Omitted entirely when no version is known — never a placeholder. |
 
-**Pace** — `window × (usage% − elapsed%)/100` — renders `1h 36m over` (orange: burning faster than the clock, quota exhausts early by that much) or `1d 5h under` (green: behind the clock). Percent heat: accent < 70%, warning ≥ 70%, error ≥ 90% — raw, so over-quota stays error-red while display caps at `100%+`.
+**Pace** — `window × (usage% − elapsed%)/100` — renders `1h 36m over` (orange: burning faster than the clock, quota exhausts early by that much) or `30m under` (green: behind the clock). Percent heat: accent < 70%, warning ≥ 70%, error ≥ 90% — raw, so over-quota stays error-red while display caps at `100%+`.
 
 ## The money line is a ledger, not a tracker
 
-<img src="assets/dataflow.svg" alt="Data-flow diagram: the omp sessions tree on disk feeds the money line; the z.ai quota API (key from omp's credential store, with the pi auth file as fallback) feeds the provider-gated zai line; the aladhan API, cached per local day, feeds the prayers and info lines." width="832">
+<img src="assets/dataflow.svg" alt="Data-flow diagram: the omp sessions tree on disk feeds the money line; the z.ai quota API (key from omp's credential store, with the pi auth file as fallback) feeds the provider-gated zai line; the aladhan API, cached per local day, feeds the prayers and info lines; and the version sources (omp's running binary, the plugin's package.json, the Tern terminal's env) feed the versions row." width="832">
 
 Costs are disk-scanned from omp's own session tree (`~/.omp/agent/sessions/`), not tracked live:
 
@@ -37,7 +37,7 @@ Costs are disk-scanned from omp's own session tree (`~/.omp/agent/sessions/`), n
 - entry ids are deduped globally, so branched/resumed session copies never double-count;
 - the sessions tree (including history migrated from pi) supersedes the retired pi-statusline ledger.
 
-The full rescan runs off the render path (~0.9 s over ~52 k entries) on the poll cycle; renders between polls use the cached snapshot. Countdowns (prayer, quota reset) still move — the widget re-renders every 30 s without touching the network or disk.
+The full rescan runs off the render path (~4 s over ~148 k entries) on the poll cycle; renders between polls use the cached snapshot. Countdowns (prayer, quota reset) still move — the widget re-renders every 30 s without touching the network or disk.
 
 ## Install
 
@@ -70,10 +70,10 @@ Or from a checkout: `omp plugin link /path/to/omp-statusline`.
 |---|---|---|
 | `zai.pollIntervalMs` | `180000` | Poll cycle for quota fetch + money rescan (clamped to ≥ `30000`). |
 | `zai.authJsonPath` | *unset* | Explicit pi-style auth JSON `{"zai": {"key": "…"}}`, read-only — pins that file as the sole key source. Unset (default): the key resolves from **omp's own credential store** (`omp /login` → `models.yml` → env → auth broker) via the host, falling back to `~/.pi/agent/auth.json` — omp-only setups need no pi files. |
-| `deen.city` / `deen.country` | `Jakarta` / `Indonesia` | aladhan lookup. |
+| `deen.city` / `deen.country` | `Jakarta` / `Indonesia` | aladhan lookup. `city: "auto"` resolves city/country/timezone via IP geolocation instead (cached 7 days). |
 | `deen.method` | `auto` | Calculation method (`auto` → aladhan default). |
 | `deen.escalateMinutes` | `30` | Minutes-until-next-prayer threshold for the `soon` escalation band. |
-| `accent` | `true` | Session-accent colorizer (Option A): row glyphs + `zai`/money labels pick up omp's per-session accent — the same name-hash hue omp paints the editor border and model name with, re-derived per render so `/theme` switches re-dress it. Values keep their semantic tokens (heat bands, next-prayer green, money green) regardless. `false` = tokens-only. Unnamed sessions render tokens-only automatically. |
+| `accent` | `true` | Session-accent colorizer (Option A): row glyphs + `zai`/money/version labels pick up omp's per-session accent — the same name-hash hue omp paints the editor border and model name with, re-derived per render so `/theme` switches re-dress it. Values keep their semantic tokens (heat bands, next-prayer green, money green) regardless. `false` = tokens-only. Unnamed sessions render tokens-only automatically. |
 
 State (deen cache) lives beside the config in `~/.omp/agent/omp-statusline/`.
 
@@ -82,7 +82,7 @@ State (deen cache) lives beside the config in `~/.omp/agent/omp-statusline/`.
 Forces a zai + deen + money refresh and notifies full source state: quota freshness, today's plan credits, 7-day per-model split, usage streaks, cache-hit rate, prayer city/hijri, and the spend breakdown including subagent share and entry count:
 
 ```
-zai key omp credentials · 5h 16% · weekly 24% · fetched 0m ago · today 7.7K · models 7d glm-5.3 28K · gpt-5.4 9.2K · streak 46d (best 61d) · cache 71% | deen Jakarta · 25 Rabīʿ al-awwal 1448 (07 Sep 2026) · fresh | money REPO $68.36 · DAY $26.50 · 7DAY $315.27 · 30DAY $492.88 · sub $11.02 · 1234 entries
+zai key omp credentials · 5h 16% · weekly 33% · fetched 0m ago · today 7.7K · models 7d glm-5.3 28K · gpt-5.4 9.2K · streak 46d (best 61d) · cache 71% | deen Jakarta · 1 Jumādá al-ūlá 1448 (11 Oct 2026) · fresh | money REPO $68.36 · DAY $26.50 · 7DAY $315.27 · 30DAY $492.88 · sub $11.02 · 1234 entries
 ```
 
 The z.ai dashboard endpoints (`credit-usage/usage-detail`, `credit-usage/activity`) accept the same API key as the quota API — no browser or cookie session needed.
