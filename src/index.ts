@@ -6,7 +6,7 @@
 //   󰄬 REPO $68.36 (117.6M) · DAY $26.50 (4.0M) · 7DAY $315.27 (4.0B) · 30DAY $492.88 (11.3B)
 //   󰚯 zai 5hrs 16%/26% (30m under · 3h 43m · 11:58)              ← provider-gated (zai only)
 //   󰚯 zai 7DAY 33%/31% (3h 22m over · 4d 19h · Sat Sep 12 03:30) ← provider-gated (zai only)
-//   󰚦 omp 18.3.4 · sl 0.6.2                                      ← omitted when versions unknown
+//   󰚦 omp 18.3.4 · sl 0.6.2 · tern 0.5.3                         ← tern only under Tern; omitted when versions unknown
 // Data layer vendored from @getpipher/pi-statusline (quota/zai, format, deen, adapters);
 // money comes from the omp sessions disk-scan (money.ts — subagent-inclusive). State
 // lives under ~/.omp/agent/omp-statusline/. The zai key resolves from omp's own
@@ -23,7 +23,7 @@ import { zaiStatusDetail } from "./adapters/zai.ts";
 import { scanMoney, type MoneySnapshot } from "./money.ts";
 import { fetchZaiReport } from "./quota/zai-extra.ts";
 import { resolveAccent, type AccentFn, type SessionAccentInputs } from "./accent.ts";
-import { ompVersion, slVersion } from "./versions.ts";
+import { ompVersion, slVersion, ternVersion } from "./versions.ts";
 // Dashboard-style compact credits: 7664 → "7.7K", 28000 → "28K", 37160 → "37.2K", 140000 → "140K".
 export function compactK(v: number): string {
   if (v < 1000) return `${Math.round(v)}`;
@@ -244,13 +244,14 @@ export function prayerLine(theme: SlTheme, s: DeenSnapshot, sep: string, accent?
   return ` ${glyph("󰣎")} ${cells.join(sep)}${stale}`;
 }
 
-// Version stamps: `omp <host> · sl <plugin>`. v0.6.2 pinned them to the info
-// line; v0.7.0 (RECTOR, 2026-10-07) moves them to a dedicated 󰚦 version row
-// (versionLine). Segments whose version is unavailable are omitted — never
+// Version stamps: `omp <host> · sl <plugin> · tern <terminal>`. v0.6.2 pinned them
+// to the info line; v0.7.0 (RECTOR, 2026-10-07) moves them to a dedicated 󰚦 version
+// row (versionLine). Segments whose version is unavailable are omitted — never
 // rendered as a placeholder lie.
 export interface VersionStamp {
   omp: string | null;
   sl: string | null;
+  tern?: string | null;
 }
 
 export function infoLine(theme: SlTheme, s: DeenSnapshot, now: number, sep: string, accent?: AccentFn | null): string {
@@ -262,7 +263,7 @@ export function infoLine(theme: SlTheme, s: DeenSnapshot, now: number, sep: stri
 }
 
 // v0.7.0 dedicated version row (RECTOR, 2026-10-07): the money-row treatment —
-// 󰚦 glyph + accent omp/sl labels, dim values. Renders as the widget's last row,
+// 󰚦 glyph + accent omp/sl/tern labels, dim values. Renders as the widget's last row,
 // unconditionally (no zai-fallback chain: zai rows come and go, this one stays).
 // Returns null when NO version is known — an all-lies row is worse than no row
 // (same contract as the old v0.6.2 stamp segments).
@@ -271,6 +272,7 @@ export function versionLine(theme: SlTheme, stamp: VersionStamp, accent?: Accent
   const parts: string[] = [];
   if (stamp.omp) parts.push(`${glyph("omp")} ${theme.fg("dim", stamp.omp)}`);
   if (stamp.sl) parts.push(`${glyph("sl")} ${theme.fg("dim", stamp.sl)}`);
+  if (stamp.tern) parts.push(`${glyph("tern")} ${theme.fg("dim", stamp.tern)}`);
   if (parts.length === 0) return null;
   return ` ${glyph("󰚦")} ${parts.join(theme.fg("dim", " · "))}`;
 }
@@ -304,10 +306,12 @@ export default function ompStatusline(pi: SlApi): void {
   let ctx: SlCtx | null = null;
   let started = false;
   let warnedNoKey = false;
-  // Clock-line stamp: sl resolves synchronously (package.json next to the source);
-  // omp resolves async (one `--version` spawn of the RUNNING binary,
-  // process.execPath — install-agnostic) and re-renders.
-  let stamp: VersionStamp = { omp: null, sl: slVersion() };
+  // Clock-line stamp: sl resolves synchronously (package.json next to the source)
+  // and tern synchronously from the environment (TERM_PROGRAM/TERM_PROGRAM_VERSION,
+  // fixed before omp launches — no re-render needed); omp resolves async (one
+  // `--version` spawn of the RUNNING binary, process.execPath — install-agnostic)
+  // and re-renders.
+  let stamp: VersionStamp = { omp: null, sl: slVersion(), tern: ternVersion() };
 
   // Managed timers when the host exposes them (omp ≥18.1: a throw inside the tick
   // is logged through the extension error channel — NOT a fatal session teardown —

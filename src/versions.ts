@@ -1,6 +1,6 @@
-// src/versions.ts — clock-line version stamp sources. Both resolved once per
-// process and cached: the stamp describes the RUNNING omp + the INSTALLED sl,
-// neither of which changes while the session lives.
+// src/versions.ts — version-row stamp sources. All resolved once per process and
+// cached: the stamp describes the RUNNING omp, the INSTALLED sl, and the HOSTING
+// tern terminal, none of which changes while the session lives.
 import { readFileSync } from "node:fs";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -51,6 +51,26 @@ let ompCache: Promise<string | null> | undefined;
 export function ompVersion(): Promise<string | null> {
   ompCache ??= spawnOmpVersion(process.execPath);
   return ompCache;
+}
+
+// Tern (stencil.so terminal) sets TERM_PROGRAM=tern + TERM_PROGRAM_VERSION for the
+// sessions it hosts — a synchronous, install-agnostic source needing no spawn.
+// Strict, case-sensitive gate: a lookalike ("Tern") or any other terminal
+// (Ghostty, tmux — even with a version set) must not borrow the segment, and
+// TERN_* side-channel vars don't count. Unknown version → null: the segment is
+// omitted upstream, never rendered as a placeholder lie.
+export function ternVersionSource(env: NodeJS.ProcessEnv): string | null {
+  if (env.TERM_PROGRAM !== "tern") return null;
+  return extractSemver(env.TERM_PROGRAM_VERSION ?? "");
+}
+
+let ternCache: string | null | undefined;
+
+// Env read, cached process-long: Tern's version cannot change while the process
+// lives (TERM_PROGRAM/TERM_PROGRAM_VERSION are fixed before omp launches).
+export function ternVersion(): string | null {
+  ternCache ??= ternVersionSource(process.env);
+  return ternCache;
 }
 
 let slCache: string | null | undefined;

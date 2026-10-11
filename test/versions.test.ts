@@ -1,13 +1,13 @@
 // test/versions.test.ts — clock-line stamp sources: pure semver extraction, the
 // omp `--version` output guard, the running-binary spawn (fixture scripts plus
-// the test runner's own runtime as the bare-version false positive), and the
-// plugin's own package.json resolver.
+// the test runner's own runtime as the bare-version false positive), the
+// plugin's own package.json resolver, and the tern env gate.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { chmodSync, mkdtempSync, writeFileSync, rmSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { extractSemver, parseOmpVersionOutput, spawnOmpVersion, slVersion } from "../src/versions.ts";
+import { extractSemver, parseOmpVersionOutput, spawnOmpVersion, slVersion, ternVersion, ternVersionSource } from "../src/versions.ts";
 
 test("extractSemver: bare marker, prefixed banner, prerelease+build, garbage", () => {
   assert.equal(extractSemver("18.3.4\n"), "18.3.4");
@@ -53,4 +53,30 @@ test("slVersion: resolves this package's package.json, matching the manifest ver
   const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")) as { version: string };
   assert.equal(slVersion(), pkg.version);
   assert.match(slVersion() ?? "", /^\d+\.\d+\.\d+$/);
+});
+
+test("ternVersionSource: tern + version parses; junk around the semver tolerated via extractSemver", () => {
+  assert.equal(ternVersionSource({ TERM_PROGRAM: "tern", TERM_PROGRAM_VERSION: "0.7.2" }), "0.7.2");
+  assert.equal(ternVersionSource({ TERM_PROGRAM: "tern", TERM_PROGRAM_VERSION: "tern 0.10.3" }), "0.10.3");
+});
+
+test("ternVersionSource: missing or garbage version under tern → null (segment omitted)", () => {
+  assert.equal(ternVersionSource({ TERM_PROGRAM: "tern" }), null);
+  assert.equal(ternVersionSource({ TERM_PROGRAM: "tern", TERM_PROGRAM_VERSION: "" }), null);
+  assert.equal(ternVersionSource({ TERM_PROGRAM: "tern", TERM_PROGRAM_VERSION: "dev" }), null);
+});
+
+test("ternVersionSource: gate is tern-exclusive — other terminals with a version set rejected", () => {
+  assert.equal(ternVersionSource({ TERM_PROGRAM: "ghostty", TERM_PROGRAM_VERSION: "1.2.3" }), null);
+  assert.equal(ternVersionSource({ TERM_PROGRAM: "tmux", TERM_PROGRAM_VERSION: "3.4.1" }), null);
+});
+
+test("ternVersionSource: strict case-sensitive match — 'Tern' is not tern; absent vars → null", () => {
+  assert.equal(ternVersionSource({ TERM_PROGRAM: "Tern", TERM_PROGRAM_VERSION: "0.7.2" }), null);
+  assert.equal(ternVersionSource({}), null);
+});
+
+test("ternVersion: env read cached process-long — stable across calls", () => {
+  const first = ternVersion();
+  assert.equal(ternVersion(), first);
 });
