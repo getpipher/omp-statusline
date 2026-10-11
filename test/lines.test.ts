@@ -121,17 +121,35 @@ test("infoLine: clock · hijri (gregorian in parens) · city, all dim", () => {
 
 test("versionLine: 󰚦 glyph + omp/sl labels, dim values, dim separator (no accent → dim identity)", () => {
   assert.equal(
-    versionLine(theme, { omp: "18.3.4", sl: "0.6.1" }),
+    versionLine(theme, { omp: "18.3.4", sl: "0.6.1", tern: null }),
     " <dim>󰚦</> <dim>omp</> <dim>18.3.4</><dim> · </><dim>sl</> <dim>0.6.1</>",
   );
 });
 
 test("versionLine: null omp drops its segment; sl still renders", () => {
-  assert.equal(versionLine(theme, { omp: null, sl: "0.6.1" }), " <dim>󰚦</> <dim>sl</> <dim>0.6.1</>");
+  assert.equal(versionLine(theme, { omp: null, sl: "0.6.1", tern: null }), " <dim>󰚦</> <dim>sl</> <dim>0.6.1</>");
 });
 
 test("versionLine: no versions → null, never a placeholder row", () => {
-  assert.equal(versionLine(theme, { omp: null, sl: null }), null);
+  assert.equal(versionLine(theme, { omp: null, sl: null, tern: null }), null);
+});
+
+test("versionLine: tern omitted (optional field) → exact v0.7.0 two-segment row", () => {
+  assert.equal(
+    versionLine(theme, { omp: "18.9.0", sl: "0.8.0" }),
+    " <dim>󰚦</> <dim>omp</> <dim>18.9.0</><dim> · </><dim>sl</> <dim>0.8.0</>",
+  );
+});
+
+test("versionLine: tern segment closes the row — omp · sl · tern order (RECTOR mock)", () => {
+  assert.equal(
+    versionLine(theme, { omp: "18.9.0", sl: "0.7.0", tern: "0.7.2" }),
+    " <dim>󰚦</> <dim>omp</> <dim>18.9.0</><dim> · </><dim>sl</> <dim>0.7.0</><dim> · </><dim>tern</> <dim>0.7.2</>",
+  );
+});
+
+test("versionLine: only tern known → tern-only row (parts.length>0 contract)", () => {
+  assert.equal(versionLine(theme, { omp: null, sl: null, tern: "0.7.2" }), " <dim>󰚦</> <dim>tern</> <dim>0.7.2</>");
 });
 
 test("moneyLine v0.3.0: every window carries dim token parens; REPO included", () => {

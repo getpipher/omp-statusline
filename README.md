@@ -8,7 +8,7 @@
 [![node](https://img.shields.io/badge/node-%E2%89%A5%2020-339933?style=flat-square)](./package.json)
 [![MIT](https://img.shields.io/badge/license-MIT-007ec6?style=flat-square)](./LICENSE)
 
-<img src="assets/hero.svg" alt="omp-statusline rendering its rows beneath the editor in a terminal: clock, Hijri date with Gregorian gloss and city; the five prayer times with a green countdown on the next prayer; API spend and token volume per window; one z.ai quota pace row per window with over/under indicators; and an omp/sl version line." width="866">
+<img src="assets/hero.svg" alt="omp-statusline rendering its rows beneath the editor in a terminal: clock, Hijri date with Gregorian gloss and city; the five prayer times with a green countdown on the next prayer; API spend and token volume per window; one z.ai quota pace row per window with over/under indicators; and an omp/sl/tern version line." width="866">
 
 A statusline widget for [omp](https://github.com/can1357/oh-my-pi) (Oh My Pi) — the omp-native successor to [pi-statusline](https://github.com/getpipher/pi-statusline). It renders below the editor in omp's own visual language (` · ` separators, nerd glyphs, theme tokens), and omp's native statusline closes the block beneath it (extension widgets cannot render under it yet — tracked upstream as [can1357/oh-my-pi#11100](https://github.com/can1357/oh-my-pi/issues/11100)).
 
@@ -22,7 +22,7 @@ Render order (top → bottom): **info · prayers · money · zai (one row per wi
 | **prayers** | All five prayers with wall times, from [aladhan](https://api.aladhan.com) (cached per local day, stale-marker on degradation). Past prayers get a dim `✓`; the next prayer is green with a countdown on its segment only — `Dhuhr 11:51 (3h 36m)`. |
 | **money** | API spend + token volume per window: `REPO $68.36 (1.3B)` (all-time for the current project) · `DAY` (since 00:00 local) · `7DAY` / `30DAY` (rolling, hour-aligned). Token volumes are dim, from the same sessions scan. |
 | **zai** | One row per quota window — `󰚯 zai 5hrs …` / `󰚯 zai 7DAY …` — each `LABEL usage%/elapsed% (pace · reset · absolute)`, e.g. `5hrs 16%/26% (30m under · 3h 43m · 11:58)`. **Provider-gated**: renders only while the active model's provider is `zai` (or the provider is unreadable); vanishes entirely on other providers. |
-| **versions** | `󰚦 omp 18.7.0 · sl 0.6.3` — host from one `--version` spawn of the **running omp binary** (`process.execPath`, so it is install-agnostic (brew/npm/curl/source) and correct even for sessions resumed across an upgrade); plugin from its own package.json. Omitted entirely when no version is known — never a placeholder. |
+| **versions** | `󰚦 omp 18.7.0 · sl 0.6.3 · tern 0.5.3` — host from one `--version` spawn of the **running omp binary** (`process.execPath`, so it is install-agnostic (brew/npm/curl/source) and correct even for sessions resumed across an upgrade); plugin from its own package.json; tern from the `TERM_PROGRAM`/`TERM_PROGRAM_VERSION` env the [Tern terminal](https://stencil.so) sets — **Tern-gated**: strict env match, segment omitted outside Tern or when the version is unknown. Omitted entirely when no version is known — never a placeholder. |
 
 **Pace** — `window × (usage% − elapsed%)/100` — renders `1h 36m over` (orange: burning faster than the clock, quota exhausts early by that much) or `1d 5h under` (green: behind the clock). Percent heat: accent < 70%, warning ≥ 70%, error ≥ 90% — raw, so over-quota stays error-red while display caps at `100%+`.
 
