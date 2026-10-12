@@ -23,7 +23,7 @@ Parse `$ARGUMENTS` and extract the semver (e.g. `18.9.2`). If the format is inva
 
 ### Step 2: Research the omp Release
 
-Research what changed in the target omp version. If your environment provides sub-agents, fan the two sources out in parallel; otherwise run them inline:
+Enumerate EVERY omp release between the plugin's last-verified baseline and the target (`gh api repos/can1357/oh-my-pi/releases --jq '.[].tag_name'`) — a compat run must clear the whole span, not just the target tag; a breaking change in an intermediate release is still breaking (first-run lesson: 18.9.1 sat unresearched between the 18.9.0 baseline and the 18.9.2 target). Research each release's notes with both sources below. If your environment provides sub-agents, fan out per release (and per source); otherwise run them inline:
 
 1. **GitHub release notes (works for any target version)** — run via shell:
    ```bash
@@ -49,13 +49,13 @@ Report findings as a table:
 
 ### Step 3: Run Gates
 
-From the repo root run `pnpm typecheck && pnpm test` and capture pass/fail counts.
+From the repo root run `pnpm typecheck && pnpm test:run` and read the pass/fail counts from the spec-reporter summary. Do NOT pipe the suite through `grep`/`head` without `pipefail` — a filtering pipe reports the filter's exit status, not the suite's, and can mask a real failure (first-run lesson: a green typecheck plus a filtered pipe read as ambiguous gates).
 
 ### Step 4: Simulate the Render
 
 omp feeds no stdin JSON to this plugin — the widget renders through the extension API. Two simulations:
 
-1. **Formatter-level**: write a throwaway script (do not commit it) that imports the real formatters from `src/index.ts` and renders every line against synthetic inputs, mirroring the stub-theme pattern in `test/lines.test.ts` (`theme.fg` stub that token-annotates, pinned instant, fixture builders). Run it the same way the suite runs (node with type stripping, e.g. `node <script>.ts`). If Step 2 found new API members, add probes for them here.
+1. **Formatter-level**: write a throwaway script (do not commit it) that imports the real formatters from `src/index.ts` and renders every line against synthetic inputs, mirroring the stub-theme pattern in `test/lines.test.ts` (`theme.fg` stub that token-annotates, pinned instant, fixture builders). Prefer exact `assert.equal` strings lifted from the suite's approved outputs over prefix/`includes` matches — exact equality is stronger sim evidence; if you use a regex, escape every `/`. Run it the same way the suite runs (node with type stripping, e.g. `node <script>.ts`). If Step 2 found new API members, add probes for them here.
 2. **Live-level** (after Step 12's install): fresh omp in a throwaway tmux instance — isolated socket only:
    ```bash
    SOCK=omp-compat-$RANDOM
@@ -94,7 +94,7 @@ Verdict:   [COMPATIBLE / NEEDS WORK]
 Per-version detail lives in the in-repo archive file; memory stays tight. **Do not append per-version paragraphs to memory files** — that is what bloated them historically.
 
 1. **README.md**: bump any compatibility/version claims (currently none hardcoded; the Install section is version-agnostic).
-2. **Render mocks**: if the layout changed, regenerate the README mock blocks AND `assets/hero.svg` + `assets/dataflow.svg` by **executing the real formatters** at one coherent depicted instant — never hand-compute a mock; every rendered row/tspan line must be reachable via the real code. Any doc-artifact audit must include SVG text, not just markdown.
+2. **Render mocks**: if the layout changed, regenerate the README mock blocks AND `assets/hero.svg` + `assets/dataflow.svg` by **executing the real formatters** at one coherent depicted instant — never hand-compute a mock; every rendered row/tspan line must be reachable via the real code. Any doc-artifact audit must include SVG text, not just markdown. Version depictions live in MULTIPLE sites (README render-mock rows, the README `/sl` sample block, `assets/hero.svg` versions tspan, `assets/dataflow.svg`) — enumerate them all before editing (grep the repo for the old version strings) and sync in ONE pass; half-states recreate the documented README-vs-SVG drift.
 3. **docs/COMPATIBILITY.md**: create on first use; append a `## omp TARGET (DATE)` section per run — gate counts, render verification, observed edge cases. In-repo authoritative archive.
 4. **Project memory**: bump a one-liner ONLY if the release added schema/API surface or notable correctness fixes. Otherwise no change.
 5. **src/versions.ts**: if a version-source mechanism changed (e.g. marker behavior, stamp parsing), update the explanatory comment block there.
