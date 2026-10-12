@@ -53,27 +53,29 @@ test("scanMoney: windows, dedupe, repo attribution, subagent share", () => {
     fixture(root, "slugA", "sess1.jsonl", "/home/u/repoA", repoA);
     fixture(root, "slugA", "sess1-branch.jsonl", "/home/u/repoA", repoA); // duplicate ids
     fixture(root, "slugA/sessdir", "Scout.jsonl", "/home/u/repoA", [{ id: "e3", ts: todayA + HOUR, cost: 0.5 }]); // subagent artifact, one level deeper
+    // per-agent advisor artifact, two levels deeper (the level that used to be skipped)
+    fixture(root, "slugA/sessdir/Scout", "__advisor.jsonl", "/home/u/repoA", [{ id: "e9", ts: todayA + HOUR, cost: 0.75 }]);
 
     // repoB session: windows yes, repoA attribution no
     fixture(root, "slugB", "sess2.jsonl", "/home/u/repoB", [{ id: "e4", ts: todayA, cost: 10 }]);
 
     // no session header → repo "unknown", never counted toward a named repo
     fixture(root, "slugC", "sess3.jsonl", null, [{ id: "e8", ts: todayA, cost: 100 }]);
-    // DAY: today's entries from every repo incl. subagent (e1, e3, e4, e8) — yesterday excluded
+    // DAY: today's entries from every repo incl. subagent + advisor (e1, e3, e9, e4, e8) — yesterday excluded
     const snap = scanMoney("repoA", now, root);
-    // REPO: e1+e2+e5+e6+e7 (+subagent e3) — duplicates counted once, other repos excluded
-    assert.equal(snap.repo, 1 + 2 + 5 + 0.25 + 5 + 0.5);
-    // DAY: today's entries from every repo (e1, e4, e8) — yesterday excluded
-    assert.equal(snap.day, 1 + 0.5 + 10 + 100);
-    // WEEK (hourFloor − 7d, inclusive): e1,e3,e4,e8 + e2(yesterday) + e5(edge)
+    // REPO: e1+e2+e5+e6+e7 (+subagent e3, +advisor e9) — duplicates counted once, other repos excluded
+    assert.equal(snap.repo, 1 + 2 + 5 + 0.25 + 5 + 0.5 + 0.75);
+    // DAY: today's entries from every repo (e1, e3, e9, e4, e8) — yesterday excluded
+    assert.equal(snap.day, 1 + 0.5 + 0.75 + 10 + 100);
+    // WEEK (hourFloor − 7d, inclusive): e1,e3,e9,e4,e8 + e2(yesterday) + e5(edge)
     // e6 is 1ms past the edge; e7 far out
-    assert.equal(snap.week, 1 + 0.5 + 10 + 100 + 2 + 5);
+    assert.equal(snap.week, 1 + 0.5 + 0.75 + 10 + 100 + 2 + 5);
     // MONTH (hourFloor − 30d): week + e6
-    assert.equal(snap.month, 1 + 0.5 + 10 + 100 + 2 + 5 + 0.25);
-    // subagent share over the 30d window
-    assert.equal(snap.sub, 0.5);
-    // unique entries: 8 ids (branch copy deduped, noise/no-usage/malformed skipped)
-    assert.equal(snap.entries, 8);
+    assert.equal(snap.month, 1 + 0.5 + 0.75 + 10 + 100 + 2 + 5 + 0.25);
+    // subagent share over the 30d window (subagent artifact + advisor consult)
+    assert.equal(snap.sub, 0.5 + 0.75);
+    // unique entries: 9 ids (branch copy deduped, noise/no-usage/malformed skipped)
+    assert.equal(snap.entries, 9);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

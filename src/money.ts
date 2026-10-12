@@ -1,11 +1,12 @@
 // money.ts — omp sessions disk-scan ledger. Sole money source (decision 2026-09-07):
 // the sessions tree is a superset of the retired pi ledger (migrated history inside),
-// covers subagent spend (<session-dir>/<Agent>.jsonl artifacts carry usage), and every
+// covers subagent spend (<session-dir>/<Agent>.jsonl artifacts carry usage) and advisor
+// consults (<session-dir>/__advisor.jsonl, and per-agent <session-dir>/<Agent>/__advisor.jsonl), and every
 // file embeds its cwd in the {"type":"session"} line → repo attribution without guesses.
 // Windows: DAY = since local midnight; 7DAY/30DAY = rolling, aligned to the current hour
 // (hourFloor(now) − N×24h — RECTOR semantics, NOT pi-statusline's calendar-day buckets).
 // Entry ids are uuid7; branched/resumed session copies share ids → dedupe on the bare id
-// so a re-persisted message is never counted twice. Full rescan (~0.9s over ~560 files)
+// so a re-persisted message is never counted twice. Full rescan (~4s over ~150k entries)
 // per poll cycle; renders between polls use the cached snapshot.
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -16,7 +17,7 @@ export interface MoneySnapshot {
   day: number; // since 00:00 local
   week: number; // hourFloor(now) − 7×24h
   month: number; // hourFloor(now) − 30×24h
-  sub: number; // subagent-artifact share of those windows' union (reporting only)
+  sub: number; // subagent + advisor artifact share of those windows' union (reporting only)
   entries: number;
   // v0.3.0: token volumes per window (RECTOR) — totalTokens from the same scan;
   // falls back to the token-component sum on legacy entries lacking the field.
@@ -77,6 +78,33 @@ function parseSessionFile(path: string, sub: boolean, out: CostEntry[], seen: Se
   }
 }
 
+// Session artifact directories hold *.jsonl at their own level (subagent <Agent>.jsonl,
+// main __advisor.jsonl) and per-agent subtrees one level deeper (<Agent>/__advisor.jsonl).
+// omp writes nothing below that (verified 2026-10-12: zero .jsonl at depth 5), so no recursion.
+function scanSessionDir(dir: string, entries: CostEntry[], seen: Set<string>): void {
+  let dirents;
+  try {
+    dirents = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const g of dirents) {
+    if (g.isFile() && g.name.endsWith(".jsonl")) {
+      parseSessionFile(join(dir, g.name), true, entries, seen);
+    } else if (g.isDirectory()) {
+      let nested;
+      try {
+        nested = readdirSync(join(dir, g.name), { withFileTypes: true });
+      } catch {
+        continue;
+      }
+      for (const h of nested) {
+        if (h.isFile() && h.name.endsWith(".jsonl")) parseSessionFile(join(dir, g.name, h.name), true, entries, seen);
+      }
+    }
+  }
+}
+
 export function scanMoney(
   currentRepo: string,
   now = Date.now(),
@@ -103,16 +131,9 @@ export function scanMoney(
         // main session file: <repoSlug>/<ts-id>.jsonl
         parseSessionFile(join(repoDir, f.name), false, entries, seen);
       } else if (f.isDirectory()) {
-        // subagent artifacts: <repoSlug>/<session-dir>/*.jsonl
-        let nested;
-        try {
-          nested = readdirSync(join(repoDir, f.name), { withFileTypes: true });
-        } catch {
-          continue;
-        }
-        for (const g of nested) {
-          if (g.isFile() && g.name.endsWith(".jsonl")) parseSessionFile(join(repoDir, f.name, g.name), true, entries, seen);
-        }
+        // session artifacts: <repoSlug>/<session-dir>/ — subagent <Agent>.jsonl,
+        // main/per-agent __advisor.jsonl (nested one level deeper)
+        scanSessionDir(join(repoDir, f.name), entries, seen);
       }
     }
   }

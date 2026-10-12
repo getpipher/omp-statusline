@@ -33,7 +33,7 @@ Render order (top → bottom): **info · prayers · money · zai (one row per wi
 Costs are disk-scanned from omp's own session tree (`~/.omp/agent/sessions/`), not tracked live:
 
 - every session file embeds its `cwd` and per-assistant-message `usage.cost.total` — the tree is a complete ledger;
-- **subagent spend is included**: subagent transcripts persist as session-format JSONL artifacts (`<repo-slug>/<session-id>/<Agent>.jsonl`) and are scanned too;
+- **subagent and advisor spend is included**: subagent transcripts persist as session-format JSONL artifacts (`<repo-slug>/<session-id>/<Agent>.jsonl`) and advisor consults as `__advisor.jsonl` — beside the session (`<session-id>/__advisor.jsonl`) and nested per agent (`<session-id>/<Agent>/__advisor.jsonl`) — and are scanned too;
 - entry ids are deduped globally, so branched/resumed session copies never double-count;
 - the sessions tree (including history migrated from pi) supersedes the retired pi-statusline ledger.
 
@@ -79,7 +79,7 @@ State (deen cache) lives beside the config in `~/.omp/agent/omp-statusline/`.
 
 ## `/sl` — force refresh & full report
 
-Forces a zai + deen + money refresh and notifies full source state: quota freshness, today's plan credits, 7-day per-model split, usage streaks, cache-hit rate, prayer city/hijri, and the spend breakdown including subagent share and entry count:
+Forces a zai + deen + money refresh and notifies full source state: quota freshness, today's plan credits, 7-day per-model split, usage streaks, cache-hit rate, prayer city/hijri, and the spend breakdown including subagent + advisor share and entry count:
 
 ```
 zai key omp credentials · 5h 16% · weekly 33% · fetched 0m ago · today 7.7K · models 7d glm-5.3 28K · gpt-5.4 9.2K · streak 46d (best 61d) · cache 71% | deen Jakarta · 1 Jumādá al-ūlá 1448 (11 Oct 2026) · fresh | money REPO $68.36 · DAY $26.50 · 7DAY $315.27 · 30DAY $492.88 · sub $11.02 · 1234 entries
