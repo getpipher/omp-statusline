@@ -12,3 +12,10 @@ Per-run authoritative record, created on first use per `.omp/commands/compat-upd
 - **Render sim (formatter-level)**: ✓ all six rows at a pinned instant (prayer, info, zai 5hrs+7DAY, money, versions `omp 18.9.2 · sl 0.8.0 · tern 0.7.2`) plus degradation probes (null omp/sl/tern segments, empty quota windows) — throwaway script mirroring the `test/lines.test.ts` stub-theme pattern.
 - **Verdict**: **COMPATIBLE** → docs-only **patch** release 0.8.1 (README versions-row mock refreshed to `omp 18.9.2 · sl 0.8.1 · tern 0.7.2` via the real `versionLine` formatter; no layout change, no memory/schema updates warranted, `src/versions.ts` comment unchanged).
 - **Ship**: branch `chore/omp-18.9.2-compat` → PR to main → tag `v0.8.1` (tag push triggers `release.yml`: typecheck → tests → npm publish → GitHub release). Live-level tmux verification runs against the installed 0.8.1 post-publish — omp sessions must restart to load a newly installed version.
+
+## omp 18.9.1 (covered retroactively 2026-10-12)
+
+- **Why**: the plugin's last verified baseline before the 18.9.2 run was 18.9.0-era (v0.8.0 live tests + docs refresh @ dccb2a1), so both 18.9.1 and 18.9.2 were unresearched and the 18.9.2 run initially covered only the target tag. Gap closed by researching the full v18.9.1 release body.
+- **Findings**: Bedrock `supportsThinkingBindingControls` plumbing across pi-ai / pi-catalog / pi-coding-agent (`models.yml` compat axis), pi-natives fix for shebang-less executables in the embedded shell, pi-tui fix for inline chart/image overlap artifacts.
+- **Surface**: **UNCHANGED** — no extension-context, theme, session-JSONL, or plugin-loading change.
+- **Disposition**: no separate release; covered by the 0.8.1 docs-only patch alongside 18.9.2. Hero.svg version row synced to `omp 18.9.2 · sl 0.8.1 · tern 0.7.2` in the same pass.
