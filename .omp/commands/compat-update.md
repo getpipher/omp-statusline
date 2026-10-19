@@ -29,10 +29,19 @@ Enumerate EVERY omp release between the plugin's last-verified baseline and the 
    ```bash
    gh api repos/can1357/oh-my-pi/releases/tags/vTARGET --jq .body
    ```
-2. **Changelog embedded in the running binary** (covers only versions inside the running binary's own history window):
+2. **Changelog embedded in the running binary** (covers only versions inside the running binary's own history window). Resolve the binary by CONTENT, not by `which omp`: a login shell can resolve a stale Homebrew Cellar build (observed: `omp --version` 18.8.6 from `Cellar` while the Tern shim served the running 18.12.3), and macOS `readlink -f` does not exist. Probe every PATH candidate plus the Tern version store and keep the first whose bundle contains the target heading — tested form:
    ```bash
-   strings -n 8 "$(readlink -f "$(which omp)")" | awk '/^## \[TARGET\]/{f=1;next} f&&/^## \[/{exit} f'
+   TARGET=18.12.3   # set from Step 1
+   BIN=""
+   while IFS= read -r b; do
+     [ -f "$b" ] || continue
+     n=$(strings -n 8 "$b" | grep -c "^## \[$TARGET\]")   # grep -c, NOT -q
+     if [ "$n" -gt 0 ]; then BIN="$b"; break; fi
+   done < <( { type -a omp | sed -n 's/^omp is //p'; echo "$HOME/Library/Application Support/Tern/omp/versions/$TARGET"; } )
+   echo "BIN=$BIN"
+   strings -n 8 "$BIN" | awk -v t="$TARGET" '$0 ~ "^## \\["t"\\]"{f=1;next} f&&/^## \[/{exit} f'
    ```
+   Why this shape: `grep -q` closes the pipe early, `strings` dies of SIGPIPE, and under `set -o pipefail` (on in this repo's shell) the `if` sees 141 and silently discards a real match — `grep -c` consumes the stream and avoids it. `while read` keeps spaces intact (Tern paths contain them), unlike `for b in $(...)`. The `.../Tern/omp/bin/omp` shim carries the same bundle as the version file, so either match is valid. If no candidate carries the heading, record the secondary source as unavailable for the span instead of silently quoting a stale window.
 
 Do NOT use `~/.omp/agent/last-changelog-version` as a source — it is gated behind the startup changelog dialog and goes stale across silent upgrades (see the comment in `src/versions.ts`). omp writes no changelog cache to disk.
 
@@ -59,12 +68,23 @@ omp feeds no stdin JSON to this plugin — the widget renders through the extens
 2. **Live-level** (after Step 12's install): fresh omp in a throwaway tmux instance — isolated socket only:
    ```bash
    SOCK=omp-compat-$RANDOM
-   tmux -L "$SOCK" new-session -d omp
-   # poll (~4 s): tmux -L "$SOCK" capture-pane -p -e
-   #   expect the version row to contain: omp TARGET and sl vNEW
-   tmux -L "$SOCK" kill-server
+   SD=$(mktemp -d /tmp/omp-compat-sessions.XXXXXX)
+   # -f /dev/null is REQUIRED: when ~/.tmux.conf loads tmux-resurrect/tmux-continuum
+   # (@continuum-restore 'on', @resurrect-capture-pane-contents 'on'), a brand-new
+   # server auto-restores the last saved layout WITH pane snapshots — capture-pane
+   # then returns a days-old widget render (observed: omp 18.6.1 · sl 0.6.3, dated
+   # 07 Oct) that reads as a broken install. Launch the content-resolved $BIN from
+   # Step 2 — NOT `command -v omp`, which can be a stale Cellar build. Quote the
+   # binary: Tern's shim path has spaces and a tmux command string splits unquoted
+   # paths silently.
+   tmux -f /dev/null -L "$SOCK" new-session -d -s compat -x 220 -y 50 -c /tmp \
+     "'$BIN' --session-dir '$SD'"
+   # poll (~4-8 s): tmux -L "$SOCK" capture-pane -p -e -t compat:0.0
+   # the version row to contain: omp TARGET and sl vNEW
+   tmux -L "$SOCK" kill-server; rm -rf "$SD"
    ```
-   NEVER run kill-server on the default socket — it kills live sessions.
+   `$BIN` comes from Step 2 — re-run that probe first if this shell is new. A pane captured before ~4 s can still be the omp splash; keep polling until the version row appears instead of judging the first blank frame.
+   NEVER run kill-server on the default socket — it kills live sessions. `kill-server` leaves the dead socket file in `/private/tmp/tmux-<uid>/`; that is inert, not a running server.
 
 ### Step 5: Compatibility Report
 
