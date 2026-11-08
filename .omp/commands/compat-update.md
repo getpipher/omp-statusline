@@ -58,7 +58,7 @@ Report findings as a table:
 
 ### Step 3: Run Gates
 
-From the repo root run `pnpm typecheck && pnpm test:run` and read the pass/fail counts from the spec-reporter summary. Do NOT pipe the suite through `grep`/`head` without `pipefail` — a filtering pipe reports the filter's exit status, not the suite's, and can mask a real failure (first-run lesson: a green typecheck plus a filtered pipe read as ambiguous gates).
+From the repo root run `pnpm install --frozen-lockfile && pnpm typecheck && pnpm test:run` and read the pass/fail counts from the spec-reporter summary. The install is part of the gates, not a workaround: with a cold/missing `node_modules` the suite never runs — typecheck dies with `Cannot find module …/typescript/bin/tsc` plus a `node_modules missing` warning (18.18.1-run lesson). It is idempotent and sub-second when the lockfile is already materialized. Do NOT pipe the suite through `grep`/`head` without `pipefail` — a filtering pipe reports the filter's exit status, not the suite's, and can mask a real failure (first-run lesson: a green typecheck plus a filtered pipe read as ambiguous gates).
 
 ### Step 4: Simulate the Render
 
@@ -79,11 +79,11 @@ omp feeds no stdin JSON to this plugin — the widget renders through the extens
    # paths silently.
    tmux -f /dev/null -L "$SOCK" new-session -d -s compat -x 220 -y 50 -c /tmp \
      "'$BIN' --session-dir '$SD'"
-   # poll (~4-8 s): tmux -L "$SOCK" capture-pane -p -e -t compat:0.0
-   # the version row to contain: omp TARGET and sl vNEW
+   # poll on a ~3 s cadence until the row appears: tmux -L "$SOCK" capture-pane -p -e -t compat:0.0
+   # the version row to contain: omp TARGET and sl vNEW (first paint ~9 s observed on 18.18.1)
    tmux -L "$SOCK" kill-server; rm -rf "$SD"
    ```
-   `$BIN` comes from Step 2 — re-run that probe first if this shell is new. A pane captured before ~4 s can still be the omp splash; keep polling until the version row appears instead of judging the first blank frame.
+   `$BIN` comes from Step 2 — re-run that probe first if this shell is new. A pane captured too early can still be the omp splash; keep polling until the version row appears instead of judging the first blank frame. Do NOT import the old "extensions load deferred — poll longer" caution from stale memory: since 18.17.0 (#18116) extensions load BEFORE the first frame, and the 18.18.1 run found the row on plain 3 s-cadence polling at ~9 s — no extended polling needed.
    NEVER run kill-server on the default socket — it kills live sessions. `kill-server` leaves the dead socket file in `/private/tmp/tmux-<uid>/`; that is inert, not a running server.
 
 ### Step 5: Compatibility Report
