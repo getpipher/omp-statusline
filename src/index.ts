@@ -1,22 +1,25 @@
-// omp-statusline — 6-line belowEditor widget, RECTOR-approved 2026-10-07 (v0.7.0:
-// zai split to one row per window + dedicated version row — narrow-canvas
-// mitigation, Tern tern-sdk#1; supersedes the 4-line 2026-09-07 layout):
+// omp-statusline — belowEditor widget: six rows on zai, seven on OpenCode Go,
+// RECTOR-approved 2026-10-07 (v0.7.0: zai split to one row per window + dedicated
+// version row — narrow-canvas mitigation, Tern tern-sdk#1; supersedes the 4-line
+// 2026-09-07 layout):
 //   󰥔 Mon 08:15 · 25 Rabīʿ al-awwal 1448 (07 Sep 2026) · Jakarta
 //   󰣎 Fajr 04:33 ✓ · Dhuhr 11:51 (3h 36m) · Asr 15:07 · Maghrib 17:52 · Isha 19:01
 //   󰄬 REPO $68.36 (117.6M) · DAY $26.50 (4.0M) · 7DAY $315.27 (4.0B) · 30DAY $492.88 (11.3B)
 //   󰚯 zai 5hrs 16%/26% (30m under · 3h 43m · 11:58)              ← provider-gated (zai only)
 //   󰚯 zai 7DAY 33%/31% (3h 22m over · 4d 19h · Sat Sep 12 03:30) ← provider-gated (zai only)
+//   󰚯 opencode 5hrs/7DAY/MONTH — three rows                    ← provider-gated (opencode-go only)
 //   󰚦 omp 18.9.0 · sl 0.8.0 · tern 0.7.2                         ← tern only under Tern; omitted when versions unknown
 // Data layer vendored from @getpipher/pi-statusline (quota/zai, format, deen, adapters);
 // money comes from the omp sessions disk-scan (money.ts — subagent-inclusive). State
-// lives under ~/.omp/agent/omp-statusline/. The zai key resolves from omp's own
-// credential store first (ctx.modelRegistry — /login, models.yml, env, broker);
-// the pi-style auth file is only a fallback (authJsonPath pins it explicitly).
+// lives under ~/.omp/agent/omp-statusline/. The zai and OpenCode Go keys both resolve
+// from omp's own credential store first (ctx.modelRegistry — /login, models.yml, env,
+// broker); the pi-style auth file is only a zai fallback (authJsonPath pins it).
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { readFileSync, mkdirSync } from "node:fs";
 import { fetchQuota, readZaiKey, type QuotaLimit, type QuotaResult } from "./quota/zai.ts";
-import { FIVE_HOUR_MS, WEEK_MS, windowElapsedPercent } from "./quota/project.ts";
+import { fetchOpencodeQuota, type OpencodeQuotaResult } from "./quota/opencode.ts";
+import { FIVE_HOUR_MS, WEEK_MS, monthlyWindowMs, windowElapsedPercent } from "./quota/project.ts";
 import { formatReset, formatResetAbs, formatGregorian, formatWeekday } from "./format.ts";
 import { createDeenSource, type DeenSnapshot, type DeenSourceConfig } from "./deen/source.ts";
 import { zaiStatusDetail } from "./adapters/zai.ts";
@@ -100,6 +103,9 @@ const PI_AUTH_JSON = join(homedir(), ".pi", "agent", "auth.json");
 
 export interface LiveConfig {
   zaiPollMs: number;
+  // OpenCode Go usage poll — independent of zaiPollMs so a /model switch already
+  // has data on either provider (both pollers run concurrently).
+  opencodePollMs: number;
   // null = not configured → key resolves via ctx.modelRegistry first, then the
   // pi-style auth file (PI_AUTH_JSON). A configured path pins the file as the
   // sole source (explicit intent beats the credential store).
@@ -115,21 +121,32 @@ export interface LiveConfig {
 export function loadLiveConfig(configPath = CONFIG_PATH): LiveConfig {
   const defaults: LiveConfig = {
     zaiPollMs: 180_000,
+    opencodePollMs: 180_000,
     authJsonPath: null,
     deen: { city: "Jakarta", country: "Indonesia", method: "auto", escalateMinutes: 30 },
     accent: true,
   };
-  let parsed: { zai?: { pollIntervalMs?: unknown; authJsonPath?: unknown }; deen?: Record<string, unknown>; accent?: unknown };
+  let parsed: {
+    zai?: { pollIntervalMs?: unknown; authJsonPath?: unknown };
+    opencode?: { pollIntervalMs?: unknown };
+    deen?: Record<string, unknown>;
+    accent?: unknown;
+  };
   try {
     parsed = JSON.parse(readFileSync(configPath, "utf8")) as typeof parsed;
   } catch {
     return defaults;
   }
   const pollMs = parsed.zai?.pollIntervalMs;
+  const opencodePollMs = parsed.opencode?.pollIntervalMs;
   const authPath = parsed.zai?.authJsonPath;
   const esc = parsed.deen?.escalateMinutes;
   return {
     zaiPollMs: typeof pollMs === "number" && Number.isFinite(pollMs) && pollMs >= 30_000 ? pollMs : defaults.zaiPollMs,
+    opencodePollMs:
+      typeof opencodePollMs === "number" && Number.isFinite(opencodePollMs) && opencodePollMs >= 30_000
+        ? opencodePollMs
+        : defaults.opencodePollMs,
     authJsonPath: typeof authPath === "string" && authPath !== "" ? authPath : null,
     accent: typeof parsed.accent === "boolean" ? parsed.accent : true,
     deen: {
@@ -143,7 +160,7 @@ export function loadLiveConfig(configPath = CONFIG_PATH): LiveConfig {
 
 // Resolved key + its origin (diagnostics: an omp /login key and a pi auth.json key
 // can be different z.ai accounts — /sl reports which one fed the quota).
-export interface ZaiKey {
+export interface ResolvedKey {
   key: string;
   source: string;
 }
@@ -151,7 +168,7 @@ export async function resolveZaiKey(
   ctx: SlCtx | null,
   cfg: LiveConfig,
   defaultFile: string = PI_AUTH_JSON,
-): Promise<ZaiKey | null> {
+): Promise<ResolvedKey | null> {
   if (cfg.authJsonPath === null && ctx?.modelRegistry) {
     try {
       const key = await ctx.modelRegistry.getApiKeyForProvider("zai");
@@ -165,6 +182,29 @@ export async function resolveZaiKey(
   return fileKey ? { key: fileKey, source: file } : null;
 }
 
+// omp's credential store is the supported source for the Go provider: omp already
+// holds the key it uses for inference (same key the usage endpoint accepts).
+// No opencode-db/auth.json fallback — OpenCode v2 stores credentials in SQLite,
+// and omp-only users need no OpenCode install.
+export async function resolveOpencodeKey(ctx: SlCtx | null): Promise<ResolvedKey | null> {
+  if (!ctx?.modelRegistry) return null;
+  try {
+    const key = await ctx.modelRegistry.getApiKeyForProvider("opencode-go");
+    if (typeof key === "string" && key !== "") return { key, source: "omp credentials" };
+  } catch {
+    /* registry unavailable → inert rows */
+  }
+  return null;
+}
+
+// Provider gate for the Go quota rows: plan data is only relevant while the active
+// model's provider is `opencode-go` (or unreadable — inert-adapter philosophy, same
+// as zai). `opencode-zen` is deliberately excluded: the endpoint reports the Go
+// plan; Zen usage is pay-as-you-go.
+export function opencodeRelevant(provider: string | undefined): boolean {
+  return provider === undefined || provider === "opencode-go";
+}
+
 // --- line renderers (approved mockup, tmux window slmock, 2026-09-07) ---------
 // Heat bands: quota windows tint accent → warning (≥70) → error (≥90); next prayer
 // success-green; past prayers dim ✓; upcoming text; labels/glyphs/separators dim.
@@ -174,7 +214,13 @@ export function heat(pct: number): string {
   return "accent";
 }
 
-function usagePercent(w: QuotaLimit): string {
+// Minimal quota-window shape shared by zai's QuotaLimit and OpenCode windows.
+interface WindowMeter {
+  percentage: number;
+  nextResetTime: number;
+}
+
+function usagePercent(w: WindowMeter): string {
   return w.percentage > 100 ? "100%+" : `${w.percentage}%`;
 }
 
@@ -191,7 +237,7 @@ export function paceText(lengthMs: number, usagePct: number, elapsedPct: number)
   return gapMs > 0 ? { text: `${t} over`, token: "warning" } : { text: `${t} under`, token: "success" };
 }
 
-function windowSeg(theme: SlTheme, label: string, lim: QuotaLimit, lengthMs: number, now: number): string {
+function windowSeg(theme: SlTheme, label: string, lim: WindowMeter, lengthMs: number, now: number): string {
   const elapsedPct = windowElapsedPercent(lim.nextResetTime, lengthMs, now);
   const pace = paceText(lengthMs, lim.percentage, elapsedPct);
   return [
@@ -225,6 +271,33 @@ export function zaiLines(theme: SlTheme, data: QuotaResult, now: number, accent?
   if (data.weekly) rows.push(` ${glyph("󰚯")} ${glyph("zai")} ${windowSeg(theme, "7DAY", data.weekly, WEEK_MS, now)}`);
   if (rows.length === 0) rows.push(theme.fg("dim", " 󰚯 zai — no quota windows"));
   return rows;
+}
+
+// One row per OpenCode Go window; same segment grammar as zai. MONTH (not 30DAY)
+// because the meter is anniversary-based and the window is 28–31 days.
+export function opencodeLines(
+  theme: SlTheme,
+  data: OpencodeQuotaResult,
+  now: number,
+  accent?: AccentFn | null,
+): string[] {
+  const glyph = accent ?? ((t: string) => theme.fg("dim", t));
+  const rows: string[] = [];
+  if (data.rolling) rows.push(` ${glyph("󰚯")} ${glyph("opencode")} ${windowSeg(theme, "5hrs", data.rolling, FIVE_HOUR_MS, now)}`);
+  if (data.weekly) rows.push(` ${glyph("󰚯")} ${glyph("opencode")} ${windowSeg(theme, "7DAY", data.weekly, WEEK_MS, now)}`);
+  if (data.monthly) rows.push(` ${glyph("󰚯")} ${glyph("opencode")} ${windowSeg(theme, "MONTH", data.monthly, monthlyWindowMs(data.monthly.nextResetTime), now)}`);
+  if (rows.length === 0) rows.push(theme.fg("dim", " 󰚯 opencode — no quota windows"));
+  return rows;
+}
+
+// /sl report detail — same shape as zaiStatusDetail.
+export function opencodeStatusDetail(data: OpencodeQuotaResult, now: number): string {
+  const parts: string[] = [];
+  if (data.rolling) parts.push(`5h ${data.rolling.percentage}%`);
+  if (data.weekly) parts.push(`weekly ${data.weekly.percentage}%`);
+  if (data.monthly) parts.push(`monthly ${data.monthly.percentage}%`);
+  parts.push(`fetched ${Math.max(0, Math.floor((now - data.fetchedAt) / 60_000))}m ago`);
+  return parts.join(" · ");
 }
 
 export function prayerLine(theme: SlTheme, s: DeenSnapshot, sep: string, accent?: AccentFn | null): string {
@@ -302,10 +375,12 @@ export default function ompStatusline(pi: SlApi): void {
   const deen = createDeenSource({ cachePath: DEEN_CACHE, config: () => cfg.deen });
   const currentRepo = process.cwd().split("/").filter(Boolean).pop() ?? "unknown";
   let zaiData: QuotaResult | null = null;
+  let opencodeData: OpencodeQuotaResult | null = null;
   let money: MoneySnapshot = { repo: 0, day: 0, week: 0, month: 0, sub: 0, entries: 0, repoTok: 0, dayTok: 0, weekTok: 0, monthTok: 0 };
   let ctx: SlCtx | null = null;
   let started = false;
   let warnedNoKey = false;
+  let warnedNoOpencodeKey = false;
   // Clock-line stamp: sl resolves synchronously (package.json next to the source)
   // and tern synchronously from the environment (TERM_PROGRAM/TERM_PROGRAM_VERSION,
   // fixed before omp launches — no re-render needed); omp resolves async (one
@@ -330,6 +405,11 @@ export default function ompStatusline(pi: SlApi): void {
     return provider === undefined || provider === "zai";
   }
 
+  // Same re-read-per-render gate for the OpenCode Go plan rows.
+  function opencodeRelevantNow(): boolean {
+    return opencodeRelevant(ctx?.models?.current()?.provider);
+  }
+
   function widgetLines(theme: SlTheme): string[] {
     const now = Date.now();
     const sep = theme.fg("dim", " · ");
@@ -346,6 +426,7 @@ export default function ompStatusline(pi: SlApi): void {
     if (s) lines.push(prayerLine(theme, s, sep, accent));
     lines.push(moneyLine(theme, money, sep, accent));
     if (zaiData && zaiRelevantNow()) lines.push(...zaiLines(theme, zaiData, now, accent));
+    if (opencodeData && opencodeRelevantNow()) lines.push(...opencodeLines(theme, opencodeData, now, accent));
     const version = versionLine(theme, stamp, accent);
     if (version) lines.push(version);
     return lines;
@@ -370,6 +451,7 @@ export default function ompStatusline(pi: SlApi): void {
         if (next) parts.push(`${next.name} ${wallTime(next.wallMin)} in ${Math.max(0, next.minutesUntil)}m`);
       }
       if (zaiData && zaiRelevantNow()) parts.push(zaiStatusDetail(zaiData, Date.now()));
+      if (opencodeData && opencodeRelevantNow()) parts.push(opencodeStatusDetail(opencodeData, Date.now()));
       parts.push(`REPO $${money.repo.toFixed(2)} · DAY $${money.day.toFixed(2)}`);
       if (parts.length > 0) ctx.ui.setStatus("osl", parts.join(" · "));
     }
@@ -396,6 +478,30 @@ export default function ompStatusline(pi: SlApi): void {
     renderWidget();
   }
 
+  // OpenCode Go meter: same fail-soft shape as pollZai — no key means inert rows
+  // (warned once, and only while the provider is actually relevant); a null fetch
+  // keeps last-good data.
+  async function pollOpencode(): Promise<void> {
+    try {
+      const resolved = await resolveOpencodeKey(ctx);
+      if (!resolved) {
+        if (opencodeRelevantNow() && !warnedNoOpencodeKey) {
+          warnedNoOpencodeKey = true;
+          ctx?.ui.notify(
+            "omp-statusline: no opencode-go key (omp credential store) — quota rows inert",
+            "warning",
+          );
+        }
+        return;
+      }
+      const result = await fetchOpencodeQuota(resolved.key);
+      if (result) opencodeData = result;
+    } catch {
+      /* keep last-good; next poll retries */
+    }
+    renderWidget();
+  }
+
   async function pollDeen(): Promise<void> {
     try {
       await deen.refresh(); // cache-keyed: hits aladhan at most once per local day
@@ -415,6 +521,7 @@ export default function ompStatusline(pi: SlApi): void {
     if (started) return;
     started = true;
     void pollZai();
+    void pollOpencode();
     void pollDeen();
     pollMoney();
     void ompVersion().then((omp) => {
@@ -431,15 +538,19 @@ export default function ompStatusline(pi: SlApi): void {
       void pollDeen();
       pollMoney(); // full rescan ~0.9s off the render path
     }, cfg.zaiPollMs);
+    startTimer(slCtx, () => {
+      void pollOpencode();
+    }, cfg.opencodePollMs);
   });
 
   pi.on("model_select", () => renderWidget());
 
   pi.registerCommand("sl", {
-    description: "omp-statusline: force zai + deen + money refresh, report source state",
+    description: "omp-statusline: force zai + opencode + deen + money refresh, report source state",
     handler: async (_args: string | undefined, cmdCtx: SlCtx) => {
       ctx = cmdCtx;
       await pollZai();
+      await pollOpencode();
       await pollDeen();
       pollMoney();
       const s = deen.current();
@@ -455,9 +566,13 @@ export default function ompStatusline(pi: SlApi): void {
           report && report.cacheHitRate !== null ? `cache ${Math.round(report.cacheHitRate * 100)}%` : "",
         ].filter(Boolean).join(" · ")
         : resolved ? "no quota data" : "no key";
+      const opencodeResolved = await resolveOpencodeKey(cmdCtx);
+      const opencodePart = opencodeData
+        ? `key ${opencodeResolved?.source ?? "?"} · ${opencodeStatusDetail(opencodeData, Date.now())}`
+        : opencodeResolved ? "no quota data" : "no key";
       const deenPart = s ? `${s.city} · ${s.hijri} (${formatGregorian(Date.now())})${s.staleMinutes !== null ? ` · stale ${s.staleMinutes}m` : " · fresh"}` : "no data";
       const moneyPart = `REPO $${money.repo.toFixed(2)} · DAY $${money.day.toFixed(2)} · 7DAY $${money.week.toFixed(2)} · 30DAY $${money.month.toFixed(2)} · sub $${money.sub.toFixed(2)} · ${money.entries} entries`;
-      cmdCtx.ui.notify(`zai ${zaiPart} | deen ${deenPart} | money ${moneyPart}`, "info");
+      cmdCtx.ui.notify(`zai ${zaiPart} | opencode ${opencodePart} | deen ${deenPart} | money ${moneyPart}`, "info");
     },
   });
 }

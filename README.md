@@ -1,6 +1,6 @@
 # omp-statusline
 
-> Six lines under your editor — Hijri clock, prayer times, API-spend ledger, per-window z.ai quota rows, and a version line — styled to match omp's native chrome.
+> Seven lines under your editor — Hijri clock, prayer times, API-spend ledger, per-window z.ai or OpenCode Go quota rows, and a version line — styled to match omp's native chrome.
 
 [![npm](https://img.shields.io/npm/v/@getpipher/omp-statusline?style=flat-square)](https://www.npmjs.com/package/@getpipher/omp-statusline)
 [![CI](https://github.com/getpipher/omp-statusline/actions/workflows/ci.yml/badge.svg)](https://github.com/getpipher/omp-statusline/actions/workflows/ci.yml)
@@ -14,7 +14,7 @@ A statusline widget for [omp](https://github.com/can1357/oh-my-pi) (Oh My Pi) �
 
 ## What it renders
 
-Render order (top → bottom): **info · prayers · money · zai (one row per window) · versions**.
+Render order (top → bottom): **info · prayers · money · zai (one row per window) · opencode (one row per Go window) · versions**.
 
 | Line | Contents |
 |---|---|
@@ -22,7 +22,8 @@ Render order (top → bottom): **info · prayers · money · zai (one row per wi
 | **prayers** | All five prayers with wall times, from [aladhan](https://api.aladhan.com) (cached per local day, stale-marker on degradation). Past prayers get a dim `✓`; the next prayer is green with a countdown on its segment only — `Fajr 04:15 (7h 03m)`. |
 | **money** | API spend + token volume per window: `REPO $68.36 (1.3B)` (all-time for the current project) · `DAY` (since 00:00 local) · `7DAY` / `30DAY` (rolling, hour-aligned). Token volumes are dim, from the same sessions scan. |
 | **zai** | One row per quota window — `󰚯 zai 5hrs …` / `󰚯 zai 7DAY …` — each `LABEL usage%/elapsed% (pace · reset · absolute)`, e.g. `5hrs 16%/26% (30m under · 3h 42m · Mon Oct 12 00:54)` / `7DAY 33%/32% (1h 41m over · 4d 19h · Fri Oct 16 16:12)`. **Provider-gated**: renders only while the active model's provider is `zai` (or the provider is unreadable); vanishes entirely on other providers. |
-| **versions** | `󰚦 omp 18.19.0 · sl 0.8.10 · tern 0.7.2` — host from one `--version` spawn of the **running omp binary** (`process.execPath`, so it is install-agnostic (brew/npm/curl/source) and correct even for sessions resumed across an upgrade); plugin from its own package.json; tern from the `TERM_PROGRAM`/`TERM_PROGRAM_VERSION` env the [Tern terminal](https://stencil.so) sets — **Tern-gated**: strict env match, segment omitted outside Tern or when the version is unknown. Omitted entirely when no version is known — never a placeholder. |
+| **opencode** | One row per **OpenCode Go** window — `󰚯 opencode 5hrs …` / `7DAY …` / `MONTH …` — same `LABEL usage%/elapsed% (pace · reset · absolute)` grammar as zai, sourced from `GET https://opencode.ai/zen/go/v1/usage` with the omp-stored Go key. `MONTH` (not `30DAY`) because the Go meter is anniversary-based: the window is the calendar month before the reset stamp, 28–31 days. **Provider-gated** to `opencode-go` (or an unreadable provider) — `opencode-zen` is excluded (that endpoint reports the Go plan; Zen is pay-as-you-go). |
+| **versions** | `󰚦 omp 18.19.0 · sl 0.8.11 · tern 0.7.2` — host from one `--version` spawn of the **running omp binary** (`process.execPath`, so it is install-agnostic (brew/npm/curl/source) and correct even for sessions resumed across an upgrade); plugin from its own package.json; tern from the `TERM_PROGRAM`/`TERM_PROGRAM_VERSION` env the [Tern terminal](https://stencil.so) sets — **Tern-gated**: strict env match, segment omitted outside Tern or when the version is unknown. Omitted entirely when no version is known — never a placeholder. |
 
 **Pace** — `window × (usage% − elapsed%)/100` — renders `1h 36m over` (orange: burning faster than the clock, quota exhausts early by that much) or `30m under` (green: behind the clock). Percent heat: accent < 70%, warning ≥ 70%, error ≥ 90% — raw, so over-quota stays error-red while display caps at `100%+`.
 
@@ -56,6 +57,9 @@ Or from a checkout: `omp plugin link /path/to/omp-statusline`.
   "zai": {
     "pollIntervalMs": 180000
   },
+  "opencode": {
+    "pollIntervalMs": 180000
+  },
   "deen": {
     "city": "Jakarta",
     "country": "Indonesia",
@@ -70,6 +74,7 @@ Or from a checkout: `omp plugin link /path/to/omp-statusline`.
 |---|---|---|
 | `zai.pollIntervalMs` | `180000` | Poll cycle for quota fetch + money rescan (clamped to ≥ `30000`). |
 | `zai.authJsonPath` | *unset* | Explicit pi-style auth JSON `{"zai": {"key": "…"}}`, read-only — pins that file as the sole key source. Unset (default): the key resolves from **omp's own credential store** (`omp /login` → `models.yml` → env → auth broker) via the host, falling back to `~/.pi/agent/auth.json` — omp-only setups need no pi files. |
+| `opencode.pollIntervalMs` | `180000` | Poll cycle for the OpenCode Go usage endpoint (clamped to ≥ `30000`); runs alongside the zai poller. The Go key always comes from **omp's credential store** (no file fallback). |
 | `deen.city` / `deen.country` | `Jakarta` / `Indonesia` | aladhan lookup. `city: "auto"` resolves city/country/timezone via IP geolocation instead (cached 7 days). |
 | `deen.method` | `auto` | Calculation method (`auto` → aladhan default). |
 | `deen.escalateMinutes` | `30` | Minutes-until-next-prayer threshold for the `soon` escalation band. |
@@ -79,10 +84,10 @@ State (deen cache) lives beside the config in `~/.omp/agent/omp-statusline/`.
 
 ## `/sl` — force refresh & full report
 
-Forces a zai + deen + money refresh and notifies full source state: quota freshness, today's plan credits, 7-day per-model split, usage streaks, cache-hit rate, prayer city/hijri, and the spend breakdown including subagent + advisor share and entry count:
+Forces a zai + opencode + deen + money refresh and notifies full source state: quota freshness on both plan meters, today's plan credits, 7-day per-model split, usage streaks, cache-hit rate, prayer city/hijri, and the spend breakdown including subagent + advisor share and entry count:
 
 ```
-zai key omp credentials · 5h 16% · weekly 33% · fetched 0m ago · today 7.7K · models 7d glm-5.3 28K · gpt-5.4 9.2K · streak 46d (best 61d) · cache 71% | deen Jakarta · 1 Jumādá al-ūlá 1448 (11 Oct 2026) · fresh | money REPO $68.36 · DAY $26.50 · 7DAY $315.27 · 30DAY $492.88 · sub $11.02 · 1234 entries
+zai key omp credentials · 5h 16% · weekly 33% · fetched 0m ago · today 7.7K · models 7d glm-5.3 28K · gpt-5.4 9.2K · streak 46d (best 61d) · cache 71% | opencode key omp credentials · 5h 40% · weekly 16% · monthly 8% · fetched 0m ago | deen Jakarta · 1 Jumādá al-ūlá 1448 (11 Oct 2026) · fresh | money REPO $68.36 · DAY $26.50 · 7DAY $315.27 · 30DAY $492.88 · sub $11.02 · 1234 entries
 ```
 
 The z.ai dashboard endpoints (`credit-usage/usage-detail`, `credit-usage/activity`) accept the same API key as the quota API — no browser or cookie session needed.
