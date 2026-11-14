@@ -11,3 +11,28 @@ export function windowElapsedPercent(nextResetTime: number, lengthMs: number, no
   if (!Number.isFinite(elapsed)) return 0;
   return Math.round(Math.min(1, Math.max(0, elapsed)) * 100);
 }
+
+// OpenCode Go monthly meter: the window starts on the same UTC day-of-month in the
+// previous month as `nextResetTime`. Clamp to the previous month's last day
+// (Mar 31 → Feb 28/29). UTC arithmetic matches the API's UTC reset stamps.
+export function previousMonthStartUtc(ts: number): number {
+  const d = new Date(ts);
+  const year = d.getUTCFullYear();
+  const month = d.getUTCMonth();
+  const prevMonth = month === 0 ? 11 : month - 1;
+  const prevYear = month === 0 ? year - 1 : year;
+  const lastDay = new Date(Date.UTC(prevYear, prevMonth + 1, 0)).getUTCDate();
+  return Date.UTC(
+    prevYear,
+    prevMonth,
+    Math.min(d.getUTCDate(), lastDay),
+    d.getUTCHours(),
+    d.getUTCMinutes(),
+    d.getUTCSeconds(),
+    d.getUTCMilliseconds(),
+  );
+}
+
+export function monthlyWindowMs(nextResetTime: number): number {
+  return nextResetTime - previousMonthStartUtc(nextResetTime);
+}
