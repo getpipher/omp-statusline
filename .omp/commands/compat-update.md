@@ -162,9 +162,11 @@ git checkout main && git pull --ff-only
 Pushing the tag replaces both the CC "PR nightly→main" and the manual GitHub-release step — `.github/workflows/release.yml` triggers on `v*` tags: install → typecheck → tests → skip-if-published check → `npm publish --access public` → `gh release create --generate-notes`.
 
 ```bash
-git tag vNEW && git push origin vNEW
+git tag -a vNEW -m "vNEW — omp TARGET compatibility (docs/version update)" && git push origin vNEW
 gh run watch   # or gh run list to find the run
 ```
+
+This repo has `tag.gpgSign=true` (signing key `BF47B9DC1FA320FA`): the shorthand `git tag vNEW` fails with `fatal: no tag message?` (observed in the 18.22.1 run). Always use the annotated form above — it produces the same signed `tag` object as prior releases (`git cat-file -t v0.8.11` → `tag`).
 
 If the skip-if-published check trips, investigate before re-tagging (the publish step is idempotent by design).
 
