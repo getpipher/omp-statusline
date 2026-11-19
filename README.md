@@ -1,5 +1,8 @@
 # omp-statusline
 
+> **Archived.** This omp extension is frozen at v0.8.12. Successor:
+> [getpipher/agent-statusline](https://github.com/getpipher/agent-statusline) (Tern-native plugin).
+
 > Seven lines under your editor — Hijri clock, prayer times, API-spend ledger, per-window z.ai or OpenCode Go quota rows, and a version line — styled to match omp's native chrome.
 
 [![npm](https://img.shields.io/npm/v/@getpipher/omp-statusline?style=flat-square)](https://www.npmjs.com/package/@getpipher/omp-statusline)
